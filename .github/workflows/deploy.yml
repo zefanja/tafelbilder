@@ -26,20 +26,16 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          # 1. Installiere Marp CLI global für die Slide-Generierung
           npm install -g @marp-team/marp-cli
-          # 2. Installiere PyYAML für das Index-Skript
           pip install PyYAML
 
-      # --- NEU: Slide-Erstellung ---
       - name: Build Slides with Marp
         run: |
-          # Sicherstellen, dass der Zielordner existiert
+          # 1. Sicherstellen, dass der Zielordner existiert
           mkdir -p public/slides
-          # Marp-Befehl: Liest MDs aus 'src/', nutzt Themes aus 'themes/', schreibt nach 'public/slides/'
-          marp src/ --html --output public/slides/ --theme-set themes/*.css
+          # 2. Korrigierter Marp-Befehl ohne abschließenden Schrägstrich im Output-Pfad
+          marp src/ --html --output public/slides --theme-set themes/*.css
 
-      # --- Index-Generierung (Unverändert) ---
       - name: Generate Index Page
         run: python scripts/build_index.py
 
