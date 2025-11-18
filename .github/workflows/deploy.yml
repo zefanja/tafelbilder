@@ -34,7 +34,7 @@ jobs:
           # 1. Sicherstellen, dass der Zielordner existiert
           mkdir -p public/slides
           # 2. Korrigierter Marp-Befehl ohne abschließenden Schrägstrich im Output-Pfad
-          marp src/ --html --output public/slides --theme-set themes/*.css
+          marp src/. --html --output public/slides --theme-set themes/*.css
 
       - name: Generate Index Page
         run: python scripts/build_index.py
