@@ -1,0 +1,56 @@
+name: Build and Deploy Slides
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python (für Index-Skript)
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install Dependencies
+        run: |
+          # Wir brauchen PyYAML für das Index-Skript
+          pip install PyYAML
+
+      - name: Prepare Public Folder and Copy HTML Slides
+        run: |
+          # 1. Erstelle den Zielordner für die Veröffentlichung
+          mkdir -p public/slides
+          
+          # 2. Kopiere die fertigen HTML-Slides (aus 'slides/') 
+          # an den endgültigen Ort (public/slides/), wo die Indexseite sie erwartet.
+          cp slides/*.html public/slides/
+
+      - name: Generate Index Page
+        # Das Skript liest die MD-Dateien aus 'src/' und schreibt die index.html nach 'public/'
+        run: python scripts/build_index.py
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'public'
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

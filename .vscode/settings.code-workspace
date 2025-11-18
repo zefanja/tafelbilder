@@ -1,0 +1,24 @@
+{
+  "folders": [
+    {
+      "path": "../"
+    }
+  ],
+  "settings": {
+    "markdown.marp.themes": [
+      "./themes/marpx.css",
+      "./themes/copernicus.css",
+      "./themes/einstein.css",
+      "./themes/frankfurt.css",
+      "./themes/galileo.css",
+      "./themes/gauss.css",
+      "./themes/gödel.css",
+      "./themes/gropius.css",
+      "./themes/lorca.css",
+      "./themes/hobbes.css",
+      "./themes/newton.css",
+      "./themes/socrates.css",
+      "./themes/sparta.css"
+    ]
+  }
+}
