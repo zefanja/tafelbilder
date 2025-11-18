@@ -40,6 +40,7 @@
 * @size A4 210mm 297mm
 * @size fullHD 1920px 1080px
 * @size banner 1600px 13000px
+* @size ipad 2360px 1640px
 *
 */
 
@@ -224,7 +225,7 @@
   /*------------< Overall theme parameters >---------------------------------*/
 
   --marpx-theme-font-family: "Fira Sans Light", Faustina, Bookerly, Lora, sans-serif;
-  --marpx-theme-font-size: 30pt;
+  --marpx-theme-font-size: 90px;
   --marpx-theme-letter-spacing: -0.0125px;
   --marpx-theme-figure-captiontext: "Figure ";
   --marpx-theme-figure-captiontext-color: var(--scarletRed-500);
@@ -357,7 +358,8 @@ ul { /* styles all ul elements*/
 }
 
 li {
-  margin-top: .8em;
+  margin-top: 50px;
+  padding-bottom: 20px;
 }
 
 section {
@@ -372,7 +374,7 @@ section {
   letter-spacing: var(--marpx-theme-letter-spacing);
   color: var(--marpx-theme-font-color);
   background: var(--marpx-theme-background-color);
-  padding: 20px 20px 20px 20px;
+  padding: 40px 40px 40px 40px;
   background-size: contain;
   align-content: start;
 }
@@ -1157,8 +1159,8 @@ div.callout {
   overflow: hidden;
   border-style: solid;
   border-width: 1.25px;
-  border-radius: 8px;
-  margin: 40px 0;
+  border-radius: 20px;
+  margin: 100px 0;
   /* top+bottom right+left */
   padding: 1px 8px 8px 16px;
   mix-blend-mode: normal;
@@ -1166,7 +1168,7 @@ div.callout {
 
 div.callout>h1 {
   position: relative;
-  font-size: 28pt;
+  font-size: 60pt;
   font-weight: 700;
   padding: 0px 0px 8pt 0px;
   margin-top: 0px;

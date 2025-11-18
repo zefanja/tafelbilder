@@ -1,7 +1,7 @@
 ---
 title: Brüche vergleichen und ordnen
 author: Stephan Tetzel
-size: 4:3
+size: ipad
 lang: de-De
 math: mathjax
 marp: true
