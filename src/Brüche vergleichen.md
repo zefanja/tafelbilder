@@ -339,7 +339,7 @@ $$\frac{2}{3} \quad ? \quad \frac{3}{4} → Hauptnenner: 12$$
 <div class="callout warning">
 
 # Zusammenfassung
-* Haben Brüche den gleichen Nenner, ist der Bruch mit dem größeren Zähler größer. (z.B. $\frac{5}{8} > \frac{3}{8}$)
+* Haben Brüche den **gleichen Nenner**, ist der Bruch mit dem **größeren Zähler größer**. (z.B. $\frac{5}{8} > \frac{3}{8}$)
 
 * Haben Brüche verschiedene Nenner, musst du sie zuerst **gleichnamig** machen.
 
