@@ -11,22 +11,41 @@ OUTPUT_DIR = 'public'
 # Wie heißt die fertige Datei?
 OUTPUT_FILENAME = 'index.html'
 
-# --- HTML TEMPLATE (mit Button) ---
+# --- HTML TEMPLATE (mit CSS für ein modernes Design) ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="de">
-# ... (Head- und Style-Bereich bleibt unverändert) ...
-
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meine Tafelbilder</title>
+    <style>
+        /* ALLE geschweiften Klammern MÜSSEN VERDOPPELT WERDEN */
+        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f4f4f9; }}
+        header {{ text-align: center; margin-bottom: 40px; }}
+        h1 {{ color: #2c3e50; }}
+        .subject-section {{ background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 30px; }}
+        h2.subject-title {{ border-bottom: 2px solid #3498db; padding-bottom: 10px; color: #2980b9; margin-top: 0; }}
+        .area-section {{ margin-top: 20px; padding-left: 10px; }}
+        h3.area-title {{ color: #7f8c8d; font-size: 1.1em; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }}
+        ul.slide-list {{ list-style: none; padding: 0; }}
+        li.slide-item {{ margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 5px; }}
+        a.slide-link {{ text-decoration: none; color: #2c3e50; font-weight: bold; font-size: 1.1em; }}
+        a.slide-link:hover {{ color: #3498db; }}
+        span.slide-date {{ font-size: 0.85em; color: #999; background: #eee; padding: 2px 6px; border-radius: 4px; }}
+        .empty-msg {{ color: #999; font-style: italic; }}
+    </style>
+</head>
 <body>
     <header>
-        <h1>📚 Vorlesungsübersicht</h1>
+        <h1>📚 Tafelbilder</h1>
         <p>Alle Slides und Unterlagen auf einen Blick.</p>
-        
+
         <button onclick="location.reload()" 
                 style="padding: 8px 15px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; margin-top: 10px;">
             Seite neu laden 🔄
         </button>
-        </header>
+    </header>
 
     <div id="content">
         {content} 
