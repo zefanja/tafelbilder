@@ -345,7 +345,7 @@ $$\frac{2}{3} \quad ? \quad \frac{3}{4} → Hauptnenner: 12$$
 
 * Den gemeinsamen Nenner findest du, indem du das kleinste gemeinsame Vielfache (kgV) der Nenner suchst. Das ist der **Hauptnenner**.
 
-* Du musst die Brüche auf den Hauptnenner erweitern!
+* Du musst die Brüche auf den **Hauptnenner** erweitern!
 
-* Erst wenn die Nenner gleich sind, darfst du die Zähler vergleichen.
+* Erst wenn die **Nenner gleich sind**, darfst du die Zähler **vergleichen**.
 </div>
