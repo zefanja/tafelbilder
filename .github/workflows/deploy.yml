@@ -1,4 +1,4 @@
-name: Build and Deploy Slides
+name: Build and Deploy Slides (Automated)
 
 on:
   push:
@@ -16,27 +16,31 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Python (für Index-Skript)
-        uses: actions/setup-python@v4
+      - name: Setup Node.js and Python
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
       - name: Install Dependencies
         run: |
-          # Wir brauchen PyYAML für das Index-Skript
+          # 1. Installiere Marp CLI global für die Slide-Generierung
+          npm install -g @marp-team/marp-cli
+          # 2. Installiere PyYAML für das Index-Skript
           pip install PyYAML
 
-      - name: Prepare Public Folder and Copy HTML Slides
+      # --- NEU: Slide-Erstellung ---
+      - name: Build Slides with Marp
         run: |
-          # 1. Erstelle den Zielordner für die Veröffentlichung
+          # Sicherstellen, dass der Zielordner existiert
           mkdir -p public/slides
-          
-          # 2. Kopiere die fertigen HTML-Slides (aus 'slides/') 
-          # an den endgültigen Ort (public/slides/), wo die Indexseite sie erwartet.
-          cp slides/*.html public/slides/
+          # Marp-Befehl: Liest MDs aus 'src/', nutzt Themes aus 'themes/', schreibt nach 'public/slides/'
+          marp src/ --html --output public/slides/ --theme-set themes/*.css
 
+      # --- Index-Generierung (Unverändert) ---
       - name: Generate Index Page
-        # Das Skript liest die MD-Dateien aus 'src/' und schreibt die index.html nach 'public/'
         run: python scripts/build_index.py
 
       - name: Upload artifact
