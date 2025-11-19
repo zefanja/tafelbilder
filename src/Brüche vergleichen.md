@@ -119,13 +119,33 @@ $$\frac{3}{4} \quad ? \quad \frac{1}{2}$$
 Brüche "gleichnamig" machen (sie müssen den gleichen Nenner haben!)
 </div>
 
-* $$\frac{3}{4} \quad ? \quad \frac{1}{2}$$
+$$\frac{3}{4} \quad ? \quad \frac{1}{2}$$
+
+<hr>
 
 * $$\frac{1}{2} = \frac{1 \cdot 2}{2 \cdot 2} = \frac{2}{4}$$
 
 * $$\frac{3}{4} \quad ? \quad \frac{2}{4}$$
 
 * $$\frac{3}{4} > \frac{2}{4}$$
+
+---
+
+<div class="callout info">
+
+# Lösung
+Brüche "gleichnamig" machen
+</div>
+
+$$\frac{8}{15} \quad ? \quad \frac{3}{5}$$
+
+<hr>
+
+* $$\frac{3}{5} = \frac{3 \cdot 3}{5 \cdot 3} = \frac{9}{15}$$
+
+* $$\frac{8}{15} \quad ? \quad \frac{9}{15}$$
+
+* $$\frac{8}{15} < \frac{9}{15}$$
 
 ---
 
@@ -136,10 +156,10 @@ Brüche "gleichnamig" machen (sie müssen den gleichen Nenner haben!)
 
 </div>
 
-* $$ a) \quad \frac{1}{3} \quad ? \quad \frac{4}{6} \quad (Tipp: \frac{1}{3} \space erweitern)$$
+* $$ a) \quad \frac{2}{3} \quad ? \quad \frac{5}{6}$$
 
 
-* $$ b) \quad \frac{2}{5} \quad ? \quad \frac{3}{10} \quad (Tipp: \frac{2}{5} \space erweitern)$$
+* $$ b) \quad \frac{2}{5} \quad ? \quad \frac{3}{10}$$
 
 
 * $$ c) \quad \frac{5}{8} \quad ? \quad \frac{1}{2}$$
@@ -153,7 +173,7 @@ Brüche "gleichnamig" machen (sie müssen den gleichen Nenner haben!)
 
 </div>
 
-* $$ a) \quad \frac{2}{6} \quad < \quad \frac{4}{6}$$
+* $$ a) \quad \frac{4}{6} \quad < \quad \frac{5}{6}$$
 
 
 * $$ b) \quad \frac{4}{10} \quad > \quad \frac{3}{10}$$
@@ -180,13 +200,44 @@ $$\frac{2}{3} \quad ? \quad \frac{3}{4}$$
 Wir suchen den Hauptnenner!
 </div>
 
-* $$\frac{2}{3} \quad ? \quad \frac{3}{4}$$
+$$\frac{2}{3} \quad ? \quad \frac{3}{4}$$
 
 <br>
 
-* Vielfache von 3 → 3; 6; 9; **12**; 15; 18; 
-* Vielfache von 4 → 4; 8; **12**; 16; 20;
-* **Hauptnenner ist 12**
+* Vielfache von 3 → 3; 6; 9; 12; 15; 18; 
+* Vielfache von 4 → 4; 8; 12; 16; 20;
+
+---
+
+<div class="callout info">
+
+# Lösung
+Wir suchen den Hauptnenner!
+</div>
+
+$$\frac{2}{3} \quad ? \quad \frac{3}{4}$$
+
+<br>
+
+- Vielfache von 3 → 3; 6; 9; **12**; 15; 18; 
+- Vielfache von 4 → 4; 8; **12**; 16; 20;
+* → **Hauptnenner ist 12**
+
+---
+
+<div class="callout info">
+
+# Lösung
+Wir suchen den Hauptnenner!
+</div>
+
+* $$\frac{3}{4} \quad ? \quad \frac{5}{6}$$
+
+<br>
+
+* Vielfache von 4 → 4; 8; 12; 16; 20; 24;
+* Vielfache von 6 → 6; 12; 18; 24; 30;
+* → **Hauptnenner ist 12**
 
 ---
 
@@ -227,6 +278,8 @@ Nenner sind nicht gleich und keine Vielfache voneinander!
 </div>
 
 $$\frac{2}{3} \quad ? \quad \frac{3}{4} → Hauptnenner: 12$$
+
+<hr>
 
 * $$\frac{2}{3} = \frac{2 \cdot 4}{3 \cdot 4} = \frac{8}{12}$$
 * $$\frac{3}{4} = \frac{3 \cdot 3}{4 \cdot 3} = \frac{9}{12}$$
