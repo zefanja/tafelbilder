@@ -5,7 +5,7 @@ size: ipad
 lang: de-De
 math: mathjax
 marp: true
-theme: gropius
+theme: gödel
 paginate: false
 transition: fade 0.2s
 subject: Mathe
@@ -13,12 +13,34 @@ area: Brüche
 
 ---
 
-# Mathe Quiz
+<div class="callout todo">
 
-Berechne im Kopf:
+  # Lösungen
+  Zeigt mir eure Whiteboards!
 
-* $10 \cdot 10$ = ++$100$++
-* $\frac{1}{4}$ als Dezimalzahl = ++$0,25$++
+</div>
+
+<div class="multicolumn">
+
+  <div>
+
+  * a) $\frac{9}{10}=$ ++$0,9$++
+
+  <br>
+
+  * b) $\frac{4}{10}=$ ++$0,4$++
+
+  </div>
+
+  <div>
+  * c) $\frac{1}{10}=$ ++$0,1$++
+  
+  <br>
+  * d) $\frac{12}{10}=$ ++$1,2$++
+
+  </div>
+
+</div>
 
 ---
 

@@ -159,7 +159,7 @@ Zahlen mit Komma heißen Dezimalzahl!
 
 <br>
 
-* $$\frac{7}{10} = 0,7$$
+* $\frac{7}{10}$ = ++$0,7$++
 
 ---
 
@@ -209,23 +209,21 @@ Zahlen mit Komma heißen Dezimalzahl!
 
   <div>
 
-  * $$ a) \quad 0,9$$
+  a) $\frac{9}{10}=$ ++$0,9$++
 
   <br>
 
-  * $$ b) \quad 0,4$$
+  b) $\frac{4}{10}=$ ++$0,4$++
 
   </div>
 
-
-
   <div>
 
-  * $$ c) \quad 0,1$$
-
+  c) $\frac{1}{10}=$ ++$0,1$++
+  
   <br>
 
-  * $$ d) \quad 1,2$$
+  d) $\frac{12}{10}=$ ++$1,2$++
 
   </div>
 
@@ -360,8 +358,8 @@ Stellenwerttafel erweitern
 Noch ein Beispiel
 </div>
 
-* $$\frac{8}{100} \quad = \quad ?$$
-* $$\frac{8}{100}  =  0,08$$
+* $\frac{8}{100}=$ ++$0,08$++
+* $\frac{17}{100}=$ ++$0,17$++
 
 ---
 
@@ -411,11 +409,11 @@ Noch ein Beispiel
 
   <div>
 
-  * $$ a) \quad 0,03$$
+  a) $\frac{3}{100}=$ ++$0,03$++
 
   <br>
 
-  * $$ b) \quad 0,25$$
+  b) $\frac{25}{100}=$ ++$0,25$++
 
   </div>
 
@@ -423,11 +421,11 @@ Noch ein Beispiel
 
   <div>
 
-  * $$ c) \quad 0,07$$
+  c) Sieben Hunderstel= ++$0,07$++
 
   <br>
 
-  * $$ d) \quad 0,99$$
+  d) $\frac{99}{100}=$ ++$0,99$++
 
   </div>
 
@@ -447,8 +445,7 @@ Dezimalzahl → Bruch
 
 <br>
 
-* $$0,4 = \space ?$$
-* $$0,4 = \frac{4}{10}$$
+$0,4 =$ ++$\frac{4}{10}$++
 
 ---
 
@@ -464,8 +461,7 @@ Dezimalzahl → Bruch
 
 <br>
 
-* $$0,3 = \space ?$$
-* $$0,3 = \frac{3}{100}$$
+$0,3 =$ ++$\frac{3}{10}$++
 
 ---
 
@@ -475,10 +471,8 @@ Dezimalzahl → Bruch
 Weiteres Beispiel: Dezimalzahl → Bruch
 </div>
 
-* $$0,9 = \space ?$$
-* $$0,9 = \frac{9}{10}$$
-* $$0,15 = \space ?$$
-* $$0,15 = \frac{15}{100}$$
+* $0,9 =$ ++$\frac{9}{10}$++
+* $0,15 =$ ++$\frac{15}{100}$++
 
 ---
 
@@ -488,10 +482,8 @@ Weiteres Beispiel: Dezimalzahl → Bruch
 Ganze Zahlen!?
 </div>
 
-* $$1,4 = \space ?$$
-* $$1,4 = 1\frac{4}{10}$$
-* $$6,15 = \space ?$$
-* $$6,15 = 6\frac{15}{100}$$
+* $1,4 =$ ++$1\frac{4}{10}$++
+* $6,15 =$ ++$6\frac{15}{100}$++
 
 ---
 
@@ -541,11 +533,11 @@ Ganze Zahlen!?
 
   <div>
 
-  * $$ a) \quad \frac{2}{10}$$
+  a) $0,2=$ ++$\frac{2}{10}$++
 
   <br>
 
-  * $$ b) \quad \frac{7}{100}$$
+  b) $0,07=$ ++$\frac{7}{100}$++
 
   </div>
 
@@ -553,11 +545,11 @@ Ganze Zahlen!?
 
   <div>
 
-  * $$ c) \quad 1\frac{8}{10}$$
+  c) $1,8=$ ++$1\frac{8}{10}$++
 
   <br>
 
-  * $$ d) \quad 6\frac{78}{100}$$
+  d) $6,78=$ ++$6\frac{78}{100}$++
 
   </div>
 

@@ -229,7 +229,7 @@
   --marpx-theme-letter-spacing: -0.0125px;
   --marpx-theme-figure-captiontext: "Figure ";
   --marpx-theme-figure-captiontext-color: var(--scarletRed-500);
-  --marpx-theme-h1-font-size: 82pt;
+  --marpx-theme-h1-font-size: 32pt;
   --marpx-theme-table-captiontext: "Table ";
   --marpx-theme-table-captiontext-color: var(--scarletRed-500);
 
@@ -381,7 +381,6 @@ hr {
 .quiz-box span {
   background-color: #d1e7dd; /* Grün (Gelöst) */
   color: #0f5132;            /* Dunkelgrüner Text */
-  
   border-radius: 6px;
   padding: 0 8px;            /* Etwas Luft um den Text */
 }
@@ -401,6 +400,7 @@ section {
   padding: 40px 40px 40px 40px;
   background-size: contain;
   align-content: start;
+  justify-content: flex-start;
 }
 
 section::after {
@@ -661,6 +661,11 @@ section.cols>h1,
 section.rows>h1,
 section.grid>h1 {
   margin-left: 80px;
+}
+
+section>div.multicolumn div>p {
+  font-size: 1.1em;
+  margin-left: 40px;
 }
 
 /* 

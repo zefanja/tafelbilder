@@ -6,6 +6,7 @@ module.exports = {
   inputDir: './src',
   output: './public/slides',
   themeSet: './themes/*.css',
+  html: true,
   
   // 2. Hier konfigurieren wir die Engine und fügen das Plugin hinzu
   engine: class extends Marp {
