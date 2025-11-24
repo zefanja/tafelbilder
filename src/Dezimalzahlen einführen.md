@@ -1,6 +1,6 @@
 ---
 title: Dezimalzahlen einführen
-author: Stephan Tetzel
+author: Mr. Kanister
 size: ipad
 lang: de-De
 math: mathjax

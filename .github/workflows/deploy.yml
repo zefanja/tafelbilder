@@ -1,4 +1,4 @@
-name: Build and Deploy Slides (Automated)
+name: Build and Deploy Slides
 
 on:
   push:
@@ -26,15 +26,18 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          npm install -g @marp-team/marp-cli
+          # WICHTIG: Das installiert marp-core, marp-cli und das plugin
+          npm install
+          # (Optional: npm list prüft, ob alles da ist, gut fürs Debuggen)
+          npm list @marp-team/marp-core 
+          
           pip install PyYAML
 
-      - name: Build Slides with Marp
+      - name: Build Slides with Marp Config
         run: |
-          # 1. Sicherstellen, dass der Zielordner existiert
-          mkdir -p public/slides/
-          # 2. Korrigierter Marp-Befehl ohne abschließenden Schrägstrich im Output-Pfad
-          marp --input-dir src/ --html --output public/slides/ --theme-set themes/*.css
+          mkdir -p public/slides
+          # Führt Marp aus und nutzt dabei die installierten Module aus node_modules
+          npx marp
 
       - name: Generate Index Page
         run: python scripts/build_index.py

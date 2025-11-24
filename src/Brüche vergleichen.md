@@ -1,6 +1,6 @@
 ---
 title: Brüche vergleichen und ordnen
-author: Stephan Tetzel
+author: Mr. Kanister
 size: ipad
 lang: de-De
 math: mathjax

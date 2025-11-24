@@ -229,7 +229,7 @@
   --marpx-theme-letter-spacing: -0.0125px;
   --marpx-theme-figure-captiontext: "Figure ";
   --marpx-theme-figure-captiontext-color: var(--scarletRed-500);
-  --marpx-theme-h1-font-size: 34pt;
+  --marpx-theme-h1-font-size: 82pt;
   --marpx-theme-table-captiontext: "Table ";
   --marpx-theme-table-captiontext-color: var(--scarletRed-500);
 
@@ -368,6 +368,25 @@ hr {
   height: 1px; 
   padding-top: 0px;
   margin-top: .5em;
+}
+
+/* 1. Der äußere Container (Platzhalter) */
+.quiz-box {
+  background-color: #e0e0e0; /* Grau (Leer) */
+  border-radius: 6px;
+  /* Kein Padding hier, das kommt vom inneren Element */
+}
+
+/* 2. Das innere Element (Die Lösung) */
+.quiz-box span {
+  background-color: #d1e7dd; /* Grün (Gelöst) */
+  color: #0f5132;            /* Dunkelgrüner Text */
+  
+  border-radius: 6px;
+  padding: 0 8px;            /* Etwas Luft um den Text */
+  
+  /* Wichtig: Transition für sanften Farbeffekt (optional) */
+  transition: all 0.3s ease;
 }
 
 section {
