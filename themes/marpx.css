@@ -384,9 +384,6 @@ hr {
   
   border-radius: 6px;
   padding: 0 8px;            /* Etwas Luft um den Text */
-  
-  /* Wichtig: Transition für sanften Farbeffekt (optional) */
-  transition: all 0.3s ease;
 }
 
 section {

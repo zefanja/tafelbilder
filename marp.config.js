@@ -8,19 +8,25 @@ module.exports = {
   themeSet: './themes/*.css',
   
   // 2. Hier konfigurieren wir die Engine und fügen das Plugin hinzu
-  engine: ({ marp }) => {
-    marp.use(markdownItIns);
+  engine: class extends Marp {
+    constructor(opts) {
+      super(opts)
+      
+      // 1. Plugin laden (damit ++ erkannt wird)
+      this.use(markdownItIns)
 
-    // Öffnendes Tag: Erst der graue Kasten, dann das Fragment
-    marp.renderer.rules.ins_open = () => {
-      return '<span class="quiz-box"><span data-marpit-fragment>'; 
-    };
+      // 2. Deine Custom-Regeln definieren
+      // WICHTIG: Wir nutzen 'this.markdown' statt 'marp'
+      
+      // Öffnendes Tag (++): Box starten + Fragment aktivieren
+      this.markdown.renderer.rules.ins_open = () => {
+        return '<span class="quiz-box"><span data-marpit-fragment="1">'
+      }
 
-    // Schließendes Tag: Beide schließen
-    marp.renderer.rules.ins_close = () => {
-      return '</span></span>';
-    };
-
-    return marp;
+      // Schließendes Tag (++): Beide spans schließen
+      this.markdown.renderer.rules.ins_close = () => {
+        return '</span></span>'
+      }
+    }
   }
 }

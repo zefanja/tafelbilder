@@ -17,8 +17,8 @@ area: Brüche
 
 Berechne im Kopf:
 
-1. $10 \cdot 10$ = ++$100$++
-2. $\frac{1}{4}$ als Dezimalzahl = ++$0,25$++
+* $10 \cdot 10$ = ++$100$++
+* $\frac{1}{4}$ als Dezimalzahl = ++$0,25$++
 
 ---
 

@@ -1,2 +1,3 @@
 # Ignoriere generierte Ordner und Build-Artefakte
 public/
+node_modules

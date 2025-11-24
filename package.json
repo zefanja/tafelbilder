@@ -2,8 +2,8 @@
   "name": "slide-builder",
   "private": true,
   "dependencies": {
-    "@marp-team/marp-cli": "^3.4.0",
-    "@marp-team/marp-core": "^3.8.0", 
+    "@marp-team/marp-cli": "^4.2.3",
+    "@marp-team/marp-core": "^3.8.0",
     "markdown-it-ins": "^3.0.1"
   }
 }
