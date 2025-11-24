@@ -65,8 +65,7 @@
 
   /*------------< TABLE COMPONENT PARAMETERS >---------------------------------*/
 
-  --marpx-table-font-size: 22px;
-  --marpx-table-font-family: ;
+    --marpx-table-font-family: ;
   --marpx-table-header-background-color: #151d33;
   --marpx-table-header-color-color: white;
   --marpx-table-border-top-color: rgb(255, 73, 1);

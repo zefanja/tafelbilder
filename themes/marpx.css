@@ -308,7 +308,7 @@
 
   /*------------< Parameters used in `TABLE` >---------------------------------*/
 
-  --marpx-table-font-size: 22px;
+  --marpx-table-font-size: 72px;
   --marpx-table-font-color: var(--marpx-theme-font-color);
   --marpx-table-font-family: inherit;
   --marpx-table-header-background-color: #151d33;
@@ -1464,6 +1464,7 @@ section table th {
   border-top: var(--marpx-table-border-top-color) solid 2px;
   border-bottom: var(--marpx-table-border-bottom-color) solid 2px;
   border-width: initial;
+  padding: 6px 30px;
 }
 
 section table td {
