@@ -563,4 +563,52 @@ Ganze Zahlen!?
   In euren Hefter
 </div>
 
-Buch S. 92 Nr. 1-4
+| Z | E | Komma | z | h | t | zt |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+|  |  | , | $\frac{1}{10}$ | $\frac{1}{100}$ | $\frac{1}{1000}$ | $\frac{1}{10000}$ |
+|  | 0 | , | 4 | 6 | 8 | 0 |
+
+<br>
+
+$0,468=$ ++$\frac{468}{1000}$++
+
+* **Buch S. 92 Nr. 1-4**
+
+---
+
+<div class="callout todo">
+
+  # Problem
+  Nenner sind nicht $\frac{1}{10}$, $\frac{1}{100}$ oder $\frac{1}{1000}$
+
+</div>
+
+* Option 1: **Erweitern**
+* $\frac{8}{25}=$ ++$\frac{8 \cdot 4}{25 \cdot 4}=$++ ++$\frac{32}{100}=$++ ++$0,32$++
+* $4\frac{7}{200}=$ ++$4\frac{7 \cdot 5}{200 \cdot 5}=$++ ++$4\frac{35}{1000}=$++ ++$4,035$++
+
+* Option 2: **Kürzen**
+* $\frac{18}{300}=$ ++$\frac{18 : 3}{300 : 3}=$++ ++$\frac{6}{100}=$++ ++$0,06$++
+
+---
+
+<div class="callout todo">
+
+  # Problem
+  Nenner sind nicht $\frac{1}{10}$, $\frac{1}{100}$ oder $\frac{1}{1000}$
+
+</div>
+
+* Option 3: **Kürzen und Erweitern**
+* $1\frac{3}{15}=$ ++$1\frac{3 : 3}{15 : 3}=$++ ++$1\frac{1}{5}=$++ ++$1\frac{1 \cdot 2}{5 \cdot 2}=$++ ++$1\frac{2}{10}=$++ ++$1,2$++
+
+---
+
+<div class="callout success">
+
+# Übungsphase
+  In euren Hefter
+</div>
+
+* **Buch S. 92 Nr. 5-6**
+* **Buch S. 93 Nr. 8-9**
