@@ -1,33 +1,31 @@
+// marp.config.js
 const { Marp } = require('@marp-team/marp-core')
 const markdownItIns = require('markdown-it-ins')
 
+// Wir laden den HTML Code aus der externen Datei
+// (Das './' bedeutet: im gleichen Ordner suchen)
+const drawingToolsHTML = require('./drawing-tools.js');
+
 module.exports = {
-  // 1. Hier definieren wir Input, Output und Themes zentral
   inputDir: './src',
   output: './public/slides',
   themeSet: './themes/*.css',
   html: true,
   
-  // 2. Hier konfigurieren wir die Engine und fügen das Plugin hinzu
   engine: class extends Marp {
     constructor(opts) {
       super(opts)
-      
-      // 1. Plugin laden (damit ++ erkannt wird)
+      // Plugin für ++Quiz++ Boxen
       this.use(markdownItIns)
+      this.markdown.renderer.rules.ins_open = () => '<span class="quiz-box"><span data-marpit-fragment="1">'
+      this.markdown.renderer.rules.ins_close = () => '</span></span>'
+    }
 
-      // 2. Deine Custom-Regeln definieren
-      // WICHTIG: Wir nutzen 'this.markdown' statt 'marp'
+    render(...args) {
+      const { html, css, comments } = super.render(...args)
       
-      // Öffnendes Tag (++): Box starten + Fragment aktivieren
-      this.markdown.renderer.rules.ins_open = () => {
-        return '<span class="quiz-box"><span data-marpit-fragment="1">'
-      }
-
-      // Schließendes Tag (++): Beide spans schließen
-      this.markdown.renderer.rules.ins_close = () => {
-        return '</span></span>'
-      }
+      // Hier fügen wir den geladenen Code an
+      return { html: html + drawingToolsHTML, css, comments }
     }
   }
 }
