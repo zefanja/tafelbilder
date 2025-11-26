@@ -12,13 +12,14 @@ module.exports = `
       width: 100%; height: 100%; 
       z-index: 1; 
       
-      /* Entscheidend für iPad: Deaktiviert ALLE Browser-Gesten auf dem Canvas */
+      /* Kritisch für iPad: Deaktiviert ALLE Browser-Gesten */
       touch-action: none !important; 
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      user-select: none;
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      user-select: none !important;
+      -webkit-tap-highlight-color: transparent !important;
       
-      /* Lässt Klicks durch, wenn kein Tool aktiv ist (wird per JS gesteuert) */
+      /* Lässt Klicks durch, wenn kein Tool aktiv ist */
       pointer-events: none; 
   }
   
@@ -103,13 +104,13 @@ module.exports = `
 <script>
 (() => {
   let currentTool = 'none';
-  // Wir speichern die ID des Pointers, der gerade malt (für Multitouch-Handling)
-  let activePointerId = null; 
+  let activePointerId = null;
+  let isDrawing = false;
   
   let penWidth = 5;
   let eraserWidth = 30;
 
-  // --- INIT ---
+  // --- INIT (mit längerer Wartezeit für MARP) ---
   const initCanvases = () => {
     document.querySelectorAll('section').forEach((sec, index) => {
       if (sec.querySelector('.mps-canvas-layer')) return;
@@ -124,14 +125,12 @@ module.exports = `
     setTimeout(checkTimer, 200); 
   };
 
-  // --- RESIZE LOGIC (Pixel-Perfect) ---
+  // --- RESIZE LOGIC ---
   const resizeCanvas = (c) => {
     const rect = c.parentElement.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    // Interne Puffergröße (High DPI)
     c.width = Math.round(rect.width * dpr);
     c.height = Math.round(rect.height * dpr);
-    // CSS Anzeigegröße
     c.style.width = rect.width + 'px';
     c.style.height = rect.height + 'px';
   };
@@ -140,7 +139,7 @@ module.exports = `
     document.querySelectorAll('.mps-canvas-layer').forEach(c => resizeCanvas(c));
   });
 
-  // --- KOORDINATEN (Raw & Robust) ---
+  // --- KOORDINATEN ---
   const getPos = (c, e) => {
     const rect = c.getBoundingClientRect();
     const scaleX = c.width / rect.width;
@@ -152,35 +151,41 @@ module.exports = `
   };
 
   const attachEvents = (c) => {
-    const ctx = c.getContext('2d');
+    const ctx = c.getContext('2d', { willReadFrequently: false });
     
     // START: Stift setzt auf
     const start = (e) => {
       if (currentTool === 'none') return;
       
-      // iPad-Fix: Verhindert sofort Scrolling/Zooming/Texmarkierung
+      // Verhindert alle Browser-Gesten sofort
       e.preventDefault();
       e.stopPropagation();
 
-      // Wenn wir schon malen, ignorieren wir weitere Finger (Handballen)
-      if (activePointerId !== null) return;
+      // Ignoriere weitere Finger wenn wir schon zeichnen
+      if (isDrawing || activePointerId !== null) return;
       
+      isDrawing = true;
       activePointerId = e.pointerId;
-      
-      // Pointer Capture sorgt dafür, dass wir Events bekommen, 
-      // auch wenn der Stift das Canvas-Element verlässt
-      try { c.setPointerCapture(e.pointerId); } catch(err){}
       
       const p = getPos(c, e);
       ctx.beginPath(); 
       ctx.moveTo(p.x, p.y);
+      
+      // Setze Pointer Capture NACH dem ersten moveTo
+      setTimeout(() => {
+        try { 
+          if (c.hasPointerCapture && !c.hasPointerCapture(e.pointerId)) {
+            c.setPointerCapture(e.pointerId); 
+          }
+        } catch(err){}
+      }, 0);
     };
     
     // MOVE: Stift bewegt sich
     const move = (e) => {
-      if (currentTool === 'none') return;
+      if (currentTool === 'none' || !isDrawing) return;
       
-      // Wir reagieren nur auf den Stift, der gestartet hat
+      // Nur auf den aktiven Pointer reagieren
       if (activePointerId !== e.pointerId) return;
 
       e.preventDefault();
@@ -188,9 +193,9 @@ module.exports = `
       
       const p = getPos(c, e);
       
-      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.lineCap = 'round'; 
+      ctx.lineJoin = 'round';
       
-      // Dynamische Dicke berechnen (wg. Retina Skalierung)
       const scaleFactor = c.width / c.getBoundingClientRect().width;
       ctx.lineWidth = (currentTool === 'eraser' ? eraserWidth : penWidth) * scaleFactor;
       
@@ -203,37 +208,67 @@ module.exports = `
     
     // END: Stift hebt ab
     const end = (e) => { 
-        if (activePointerId === e.pointerId) {
-            e.preventDefault();
-            e.stopPropagation();
-            activePointerId = null;
-            try { c.releasePointerCapture(e.pointerId); } catch(err){}
+      if (activePointerId !== e.pointerId) return;
+      
+      e.preventDefault();
+      e.stopPropagation();
+      
+      isDrawing = false;
+      activePointerId = null;
+      
+      try { 
+        if (c.hasPointerCapture && c.hasPointerCapture(e.pointerId)) {
+          c.releasePointerCapture(e.pointerId); 
         }
+      } catch(err){}
     };
     
-    // Listener für moderne Pointer Events (deckt Maus, Touch, Pencil ab)
-    c.addEventListener('pointerdown', start); 
-    c.addEventListener('pointermove', move);
-    c.addEventListener('pointerup', end); 
-    c.addEventListener('pointercancel', end);
-    c.addEventListener('pointerout', end);
+    // Pointer Events (primär)
+    c.addEventListener('pointerdown', start, { passive: false }); 
+    c.addEventListener('pointermove', move, { passive: false });
+    c.addEventListener('pointerup', end, { passive: false }); 
+    c.addEventListener('pointercancel', end, { passive: false });
+    // pointerout bewusst NICHT benutzt - unterbricht Striche
     
-    // "Ghost Click" Killer: Verhindert Blättern nach dem Zeichnen
+    // Touch Events (Fallback für ältere iPads)
+    c.addEventListener('touchstart', (e) => {
+      if (currentTool !== 'none') {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, { passive: false });
+    
+    c.addEventListener('touchmove', (e) => {
+      if (currentTool !== 'none') {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, { passive: false });
+    
+    c.addEventListener('touchend', (e) => {
+      if (currentTool !== 'none') {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, { passive: false });
+    
+    // Verhindert Klicks nach Zeichnen
     c.addEventListener('click', (e) => {
-        if(currentTool !== 'none') {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    }, true);
+      if(currentTool !== 'none') {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, { capture: true, passive: false });
   };
 
   // --- TOOLBAR LOGIC ---
   window.setMpsTool = (t) => {
     currentTool = t;
+    isDrawing = false;
+    activePointerId = null;
+    
     document.querySelectorAll('.mps-canvas-layer').forEach(c => {
-        // 'auto' = Zeichnen an, Browser-Events aus
-        // 'none' = Zeichnen aus, Klicks gehen durch zur Folie
-        c.style.pointerEvents = (t === 'none') ? 'none' : 'auto';
+      c.style.pointerEvents = (t === 'none') ? 'none' : 'auto';
     });
     
     document.querySelectorAll('.mps-tool').forEach(b => b.classList.remove('active'));
@@ -244,16 +279,26 @@ module.exports = `
   };
 
   window.toggleMenu = (id) => {
-      const el = document.getElementById(id);
-      const isVisible = el.style.display === 'flex';
-      document.querySelectorAll('.mps-popover').forEach(p => p.style.display = 'none');
-      if (!isVisible) el.style.display = 'flex';
+    const el = document.getElementById(id);
+    const isVisible = el.style.display === 'flex';
+    document.querySelectorAll('.mps-popover').forEach(p => p.style.display = 'none');
+    if (!isVisible) el.style.display = 'flex';
   };
-  window.setPenWidth = (w) => { penWidth = w; document.getElementById('menu-pen-size').style.display = 'none'; };
-  window.setEraserWidth = (w) => { eraserWidth = w; document.getElementById('menu-era-size').style.display = 'none'; };
+  
+  window.setPenWidth = (w) => { 
+    penWidth = w; 
+    document.getElementById('menu-pen-size').style.display = 'none'; 
+  };
+  
+  window.setEraserWidth = (w) => { 
+    eraserWidth = w; 
+    document.getElementById('menu-era-size').style.display = 'none'; 
+  };
 
   document.addEventListener('click', (e) => {
-      if (!e.target.closest('#mps-footer')) document.querySelectorAll('.mps-popover').forEach(p => p.style.display = 'none');
+    if (!e.target.closest('#mps-footer')) {
+      document.querySelectorAll('.mps-popover').forEach(p => p.style.display = 'none');
+    }
   });
 
   window.clearVisibleSlide = () => {
@@ -261,17 +306,17 @@ module.exports = `
     const centerY = window.innerHeight / 2;
     const hitElement = document.elementFromPoint(centerX, centerY);
     if (hitElement) {
-        const sec = hitElement.closest('section');
-        if (sec) {
-            const c = sec.querySelector('canvas.mps-canvas-layer');
-            if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
-        }
+      const sec = hitElement.closest('section');
+      if (sec) {
+        const c = sec.querySelector('canvas.mps-canvas-layer');
+        if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+      }
     }
   };
   
   window.toggleMpsFS = () => {
-      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-      else if (document.exitFullscreen) document.exitFullscreen();
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else if (document.exitFullscreen) document.exitFullscreen();
   };
 
   // --- TIMER ---
@@ -281,39 +326,57 @@ module.exports = `
   let isTimerRunning = false;
 
   const updateTimerDisplay = () => {
-      const m = Math.floor(remainingSeconds / 60);
-      const s = remainingSeconds % 60;
-      const display = document.getElementById('mps-timer-display');
-      display.textContent = \`\${m.toString().padStart(2,'0')}:\${s.toString().padStart(2,'0')}\`;
-      document.getElementById('btn-timer-toggle').textContent = isTimerRunning ? '⏸' : '▶';
-      if (remainingSeconds <= 0 && !isTimerRunning && defaultSeconds > 0) display.classList.add('mps-timer-finished');
-      else display.classList.remove('mps-timer-finished');
+    const m = Math.floor(remainingSeconds / 60);
+    const s = remainingSeconds % 60;
+    const display = document.getElementById('mps-timer-display');
+    display.textContent = m.toString().padStart(2,'0') + ':' + s.toString().padStart(2,'0');
+    document.getElementById('btn-timer-toggle').textContent = isTimerRunning ? '⏸' : '▶';
+    if (remainingSeconds <= 0 && !isTimerRunning && defaultSeconds > 0) {
+      display.classList.add('mps-timer-finished');
+    } else {
+      display.classList.remove('mps-timer-finished');
+    }
   };
 
   const stopTimer = () => {
-      if (timerInterval) clearInterval(timerInterval);
-      isTimerRunning = false;
-      updateTimerDisplay();
+    if (timerInterval) clearInterval(timerInterval);
+    isTimerRunning = false;
+    updateTimerDisplay();
   };
 
   const startTimer = () => {
-      if (isTimerRunning) return;
-      isTimerRunning = true;
-      updateTimerDisplay();
-      timerInterval = setInterval(() => {
-          if (remainingSeconds > 0) {
-              remainingSeconds--;
-              updateTimerDisplay();
-          } else {
-              stopTimer();
-              document.getElementById('mps-timer-display').classList.add('mps-timer-finished');
-          }
-      }, 1000);
+    if (isTimerRunning) return;
+    isTimerRunning = true;
+    updateTimerDisplay();
+    timerInterval = setInterval(() => {
+      if (remainingSeconds > 0) {
+        remainingSeconds--;
+        updateTimerDisplay();
+      } else {
+        stopTimer();
+        document.getElementById('mps-timer-display').classList.add('mps-timer-finished');
+      }
+    }, 1000);
   };
 
-  window.timerToggle = () => { isTimerRunning ? stopTimer() : startTimer(); };
-  window.timerReset = () => { stopTimer(); remainingSeconds = defaultSeconds; document.getElementById('mps-timer-display').classList.remove('mps-timer-finished'); updateTimerDisplay(); };
-  window.timerAdd = (mins) => { remainingSeconds += (mins * 60); updateTimerDisplay(); if(isTimerRunning) document.getElementById('mps-timer-display').classList.remove('mps-timer-finished'); };
+  window.timerToggle = () => { 
+    isTimerRunning ? stopTimer() : startTimer(); 
+  };
+  
+  window.timerReset = () => { 
+    stopTimer(); 
+    remainingSeconds = defaultSeconds; 
+    document.getElementById('mps-timer-display').classList.remove('mps-timer-finished'); 
+    updateTimerDisplay(); 
+  };
+  
+  window.timerAdd = (mins) => { 
+    remainingSeconds += (mins * 60); 
+    updateTimerDisplay(); 
+    if(isTimerRunning) {
+      document.getElementById('mps-timer-display').classList.remove('mps-timer-finished'); 
+    }
+  };
 
   const checkTimer = () => {
     const centerX = window.innerWidth / 2;
@@ -324,30 +387,35 @@ module.exports = `
     
     stopTimer();
     if (sec) {
-        const timerEl = sec.querySelector('[data-timer]');
-        if (timerEl) {
-            const val = timerEl.getAttribute('data-timer');
-            let seconds = 0;
-            if (val.includes(':')) {
-                const parts = val.split(':');
-                seconds = (parseInt(parts[0]) * 60) + parseInt(parts[1]);
-            } else {
-                seconds = parseInt(val) * 60;
-            }
-            defaultSeconds = seconds;
-            remainingSeconds = seconds;
-            widget.style.display = 'flex';
-            startTimer(); 
+      const timerEl = sec.querySelector('[data-timer]');
+      if (timerEl) {
+        const val = timerEl.getAttribute('data-timer');
+        let seconds = 0;
+        if (val.includes(':')) {
+          const parts = val.split(':');
+          seconds = (parseInt(parts[0]) * 60) + parseInt(parts[1]);
         } else {
-            widget.style.display = 'none';
+          seconds = parseInt(val) * 60;
         }
+        defaultSeconds = seconds;
+        remainingSeconds = seconds;
+        widget.style.display = 'flex';
+        startTimer(); 
+      } else {
+        widget.style.display = 'none';
+      }
     }
   };
 
   window.addEventListener('hashchange', () => setTimeout(checkTimer, 50));
-  window.addEventListener('keyup', (e) => { if(e.key.startsWith('Arrow') || e.key === 'PageUp' || e.key === 'PageDown') setTimeout(checkTimer, 50); });
+  window.addEventListener('keyup', (e) => { 
+    if(e.key.startsWith('Arrow') || e.key === 'PageUp' || e.key === 'PageDown') {
+      setTimeout(checkTimer, 50); 
+    }
+  });
   
-  setTimeout(initCanvases, 100);
+  // Längere Wartezeit für MARP-Initialisierung
+  setTimeout(initCanvases, 300);
 })();
 </script>
 `;
