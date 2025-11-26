@@ -7,11 +7,13 @@ module.exports = `
   .mps-drop-btn { min-width: 80px; justify-content: space-between; }
   
   /* Canvas Overlay */
+  /* WICHTIG: width/height 100% sorgt für korrekte Abdeckung */
   .mps-canvas-layer { 
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+      position: absolute; top: 0; left: 0; 
+      width: 100%; height: 100%; 
       z-index: 1; 
-      pointer-events: none; /* Klicks durchlassen wenn inaktiv */
-      touch-action: none !important; /* WICHTIG: Verhindert iPad Zoom/Scroll */
+      pointer-events: none; 
+      touch-action: none !important; 
   }
   
   /* Tool Icons */
@@ -110,66 +112,79 @@ module.exports = `
   const initCanvases = () => {
     document.querySelectorAll('section').forEach((sec, index) => {
       if (sec.querySelector('.mps-canvas-layer')) return;
+      
+      // Canvas muss das erste Kind sein oder absolut positioniert
       sec.style.position = 'relative'; 
+      
       const c = document.createElement('canvas');
       c.className = 'mps-canvas-layer';
       c.id = 'canvas-slide-' + (index + 1);
+      
       attachEvents(c);
       sec.appendChild(c);
+      
+      // Erstes Setup
       resizeCanvas(c);
     });
     setTimeout(checkTimer, 200); 
   };
 
-  // --- CANVAS GRÖSSE SETZEN ---
+  // --- RETINA RESIZE LOGIC ---
   const resizeCanvas = (c) => {
+    // Wir holen die ECHTE angezeigte Größe auf dem Bildschirm
     const rect = c.parentElement.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     
-    // Interne Auflösung anpassen (für Retina)
-    // Wir runden, um Sub-Pixel-Artefakte zu vermeiden
+    // Setze die interne Pixel-Auflösung hoch für Schärfe
     c.width = Math.floor(rect.width * dpr);
     c.height = Math.floor(rect.height * dpr);
     
-    // CSS-Größe muss exakt der Slide entsprechen
-    c.style.width = rect.width + 'px';
-    c.style.height = rect.height + 'px';
+    // WICHTIG: Wir setzen KEINE style.width/height hier via JS!
+    // Das erledigt das CSS (width: 100%; height: 100%)
+    // Das verhindert den "Offset"-Bug bei Marp-Skalierung.
+    
+    const ctx = c.getContext('2d');
+    // Damit wir weiterhin in logischen Pixeln denken können:
+    ctx.scale(dpr, dpr);
   };
   
   window.addEventListener('resize', () => {
     document.querySelectorAll('.mps-canvas-layer').forEach(c => {
-       // Bei Resize Inhalt löschen/neu aufbauen (vereinfacht, um Verzerrung zu vermeiden)
-       // Da Marp Slides responsive sind, ist ein "Stretch" oft falsch.
-       // Professioneller wäre hier ein redraw, aber resizeCanvas reicht für neue Striche.
+       // Bei Resize einfach neu anpassen.
+       // (Zeichnung geht verloren bei Resize, das ist bei Web-Canvas normaler Trade-off für Performance)
        resizeCanvas(c);
     });
   });
 
-  // --- KOORDINATEN-BERECHNUNG (DER FIX) ---
+  // --- KOORDINATEN LOGIK (Bulletproof) ---
   const getPos = (c, e) => {
+    // Hole die aktuelle Position und Größe des Canvas im Viewport
     const rect = c.getBoundingClientRect();
     
-    // DAS IST DER SCHLÜSSEL:
-    // Wir berechnen das Verhältnis zwischen Canvas-internen Pixeln (width/height)
-    // und der angezeigten Größe im Browser (rect.width/height).
-    // Das korrigiert automatisch Retina-Displays UND Marp-Zoom-Faktoren.
-    const scaleX = c.width / rect.width;
-    const scaleY = c.height / rect.height;
+    // Berechne Skalierungsfaktor: 
+    // Interne Auflösung (c.width) geteilt durch sichtbare Breite (rect.width)
+    // Wenn CSS sagt "width: 100%", ist rect.width die Slide-Breite.
+    // Aber c.width ist rect.width * dpr (wegen Retina Fix oben).
+    // Da wir ctx.scale(dpr, dpr) nutzen, müssen wir die Mauskoordinaten 
+    // NICHT manuell mit dpr multiplizieren, das macht der Context.
     
+    // Wir müssen nur sicherstellen, dass wir relativ zum Element sind.
+    // Aber Achtung: Wenn Marp zoomt, stimmt rect.width nicht mit dem "Layout" überein.
+    
+    // Die sicherste Methode bei transformierten Eltern (Marp):
     return { 
-      x: (e.clientX - rect.left) * scaleX, 
-      y: (e.clientY - rect.top) * scaleY 
+      x: (e.clientX - rect.left), 
+      y: (e.clientY - rect.top)
     };
   };
 
   const attachEvents = (c) => {
     const ctx = c.getContext('2d');
     
-    // Start (Pointer Down)
     const start = (e) => {
       if (currentTool === 'none') return;
-      e.stopPropagation(); // Verhindert Marp-Klick
-      e.preventDefault();  // Verhindert iPad Scrollen
+      e.stopPropagation(); 
+      e.preventDefault(); 
       
       isDrawing = true;
       c.setPointerCapture(e.pointerId);
@@ -179,23 +194,21 @@ module.exports = `
       ctx.moveTo(p.x, p.y);
     };
     
-    // Move (Pointer Move)
     const move = (e) => {
-      // Auch beim Bewegen blocken
       if(isDrawing) { e.stopPropagation(); e.preventDefault(); }
       
       if (!isDrawing || currentTool === 'none') return;
       
       const p = getPos(c, e);
       
-      ctx.lineCap = 'round'; 
-      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       
-      // Liniendicke an Auflösung anpassen (ScaleX Faktor nutzen)
-      const scaleFactor = c.width / c.getBoundingClientRect().width;
-      const baseWidth = currentTool === 'eraser' ? eraserWidth : penWidth;
-      ctx.lineWidth = baseWidth * scaleFactor;
+      // Berechnung der Dicke relativ zum Zoom
+      // Damit der Stift nicht riesig wird, wenn Marp rauszoomt
+      const rect = c.getBoundingClientRect();
+      const scaleFactor = 1; // Vereinfacht, da wir ctx.scale nutzen
       
+      ctx.lineWidth = currentTool === 'eraser' ? eraserWidth : penWidth;
       ctx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
       ctx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
       
@@ -203,7 +216,6 @@ module.exports = `
       ctx.stroke();
     };
     
-    // End (Pointer Up)
     const end = (e) => { 
         if(isDrawing) {
             e.stopPropagation();
@@ -211,36 +223,25 @@ module.exports = `
             c.releasePointerCapture(e.pointerId);
         }
     };
-
-    // KILL CLICK EVENT
-    // Dies fängt das "Klick"-Event ab, das NACH pointerup gefeuert wird.
-    // capture: true sorgt dafür, dass wir das Event vor Marp bekommen.
+    
+    // Klick-Blocker
     const killClick = (e) => {
-        if (currentTool !== 'none') {
-            e.stopPropagation();
-            e.preventDefault();
-        }
+        if (currentTool !== 'none') { e.stopPropagation(); e.preventDefault(); }
     };
     
     c.addEventListener('pointerdown', start); 
     c.addEventListener('pointermove', move);
     c.addEventListener('pointerup', end); 
     c.addEventListener('pointercancel', end);
-    
-    // Event auf 'capture' Phase setzen, um es vor Marp abzufangen
     c.addEventListener('click', killClick, true);
   };
 
   // --- TOOLBAR ---
   window.setMpsTool = (t) => {
     currentTool = t;
-    document.querySelectorAll('.mps-canvas-layer').forEach(c => {
-        // 'auto' aktiviert Pointer-Events (Zeichnen möglich)
-        // 'none' lässt Klicks zur Folie durch (Markieren, Links)
-        c.style.pointerEvents = (t === 'none') ? 'none' : 'auto';
-    });
-    
+    document.querySelectorAll('.mps-canvas-layer').forEach(c => c.style.pointerEvents = (t === 'none') ? 'none' : 'auto');
     document.querySelectorAll('.mps-tool').forEach(b => b.classList.remove('active'));
+    
     if (t === 'black') document.querySelector('.btn-blk').classList.add('active');
     if (t === 'red') document.querySelector('.btn-red').classList.add('active');
     if (t === 'green') document.querySelector('.btn-grn').classList.add('active');
@@ -260,7 +261,7 @@ module.exports = `
       if (!e.target.closest('#mps-footer')) document.querySelectorAll('.mps-popover').forEach(p => p.style.display = 'none');
   });
 
-  // --- CLEAR FUNCTION (Raycasting) ---
+  // --- CLEAR FUNCTION ---
   window.clearVisibleSlide = () => {
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
