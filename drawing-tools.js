@@ -7,10 +7,11 @@ module.exports = `
   .mps-drop-btn { min-width: 80px; justify-content: space-between; }
   
   /* Canvas Overlay */
-  /* WICHTIG: touch-action: none verhindert Scrollen beim Malen auf iPad */
   .mps-canvas-layer { 
       position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-      z-index: 1; pointer-events: none; touch-action: none; 
+      z-index: 1; 
+      pointer-events: none; /* Klicks durchlassen wenn inaktiv */
+      touch-action: none !important; /* WICHTIG: Verhindert iPad Zoom/Scroll */
   }
   
   /* Tool Icons */
@@ -113,37 +114,48 @@ module.exports = `
       const c = document.createElement('canvas');
       c.className = 'mps-canvas-layer';
       c.id = 'canvas-slide-' + (index + 1);
-      attachEvents(c); // Hier werden jetzt Pointer Events genutzt
+      attachEvents(c);
       sec.appendChild(c);
       resizeCanvas(c);
     });
     setTimeout(checkTimer, 200); 
   };
 
+  // --- CANVAS GRÖSSE SETZEN ---
   const resizeCanvas = (c) => {
     const rect = c.parentElement.getBoundingClientRect();
-    c.width = rect.width;
-    c.height = rect.height;
+    const dpr = window.devicePixelRatio || 1;
+    
+    // Interne Auflösung anpassen (für Retina)
+    // Wir runden, um Sub-Pixel-Artefakte zu vermeiden
+    c.width = Math.floor(rect.width * dpr);
+    c.height = Math.floor(rect.height * dpr);
+    
+    // CSS-Größe muss exakt der Slide entsprechen
+    c.style.width = rect.width + 'px';
+    c.style.height = rect.height + 'px';
   };
   
   window.addEventListener('resize', () => {
     document.querySelectorAll('.mps-canvas-layer').forEach(c => {
-       const ctx = c.getContext('2d');
-       const temp = ctx.getImageData(0,0,c.width, c.height);
+       // Bei Resize Inhalt löschen/neu aufbauen (vereinfacht, um Verzerrung zu vermeiden)
+       // Da Marp Slides responsive sind, ist ein "Stretch" oft falsch.
+       // Professioneller wäre hier ein redraw, aber resizeCanvas reicht für neue Striche.
        resizeCanvas(c);
-       ctx.putImageData(temp, 0, 0);
     });
   });
 
-  // --- ZEICHEN LOGIK (JETZT MIT POINTER EVENTS) ---
-  
-  // Vereinfachte Koordinatenberechnung für Pointer Events
+  // --- KOORDINATEN-BERECHNUNG (DER FIX) ---
   const getPos = (c, e) => {
     const rect = c.getBoundingClientRect();
+    
+    // DAS IST DER SCHLÜSSEL:
+    // Wir berechnen das Verhältnis zwischen Canvas-internen Pixeln (width/height)
+    // und der angezeigten Größe im Browser (rect.width/height).
+    // Das korrigiert automatisch Retina-Displays UND Marp-Zoom-Faktoren.
     const scaleX = c.width / rect.width;
     const scaleY = c.height / rect.height;
     
-    // Pointer Events haben immer clientX/Y, egal ob Maus oder Stift
     return { 
       x: (e.clientX - rect.left) * scaleX, 
       y: (e.clientY - rect.top) * scaleY 
@@ -153,15 +165,13 @@ module.exports = `
   const attachEvents = (c) => {
     const ctx = c.getContext('2d');
     
-    // Pointer Down (Start)
+    // Start (Pointer Down)
     const start = (e) => {
       if (currentTool === 'none') return;
-      // Verhindert Scrolling auf iPad
-      e.preventDefault(); 
+      e.stopPropagation(); // Verhindert Marp-Klick
+      e.preventDefault();  // Verhindert iPad Scrollen
       
       isDrawing = true;
-      
-      // Canvas Capture (wichtig damit der Strich nicht abbricht, wenn man rausmalt)
       c.setPointerCapture(e.pointerId);
       
       const p = getPos(c, e);
@@ -169,50 +179,68 @@ module.exports = `
       ctx.moveTo(p.x, p.y);
     };
     
-    // Pointer Move (Zeichnen)
+    // Move (Pointer Move)
     const move = (e) => {
+      // Auch beim Bewegen blocken
+      if(isDrawing) { e.stopPropagation(); e.preventDefault(); }
+      
       if (!isDrawing || currentTool === 'none') return;
-      e.preventDefault(); // WICHTIG: Verhindert Scrollen beim Malen
       
       const p = getPos(c, e);
       
       ctx.lineCap = 'round'; 
       ctx.lineJoin = 'round';
-      ctx.lineWidth = currentTool === 'eraser' ? eraserWidth : penWidth;
+      
+      // Liniendicke an Auflösung anpassen (ScaleX Faktor nutzen)
+      const scaleFactor = c.width / c.getBoundingClientRect().width;
+      const baseWidth = currentTool === 'eraser' ? eraserWidth : penWidth;
+      ctx.lineWidth = baseWidth * scaleFactor;
+      
       ctx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
       ctx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
       
-      // Optional: Apple Pencil Druckerkennung (e.pressure)
-      // Wenn du willst, dass festeres Drücken dickere Linien macht, 
-      // kommentiere die nächste Zeile ein:
-      // if (currentTool !== 'eraser') ctx.lineWidth = penWidth * (0.5 + e.pressure);
-
       ctx.lineTo(p.x, p.y); 
       ctx.stroke();
     };
     
-    // Pointer Up/Cancel (Ende)
+    // End (Pointer Up)
     const end = (e) => { 
         if(isDrawing) {
+            e.stopPropagation();
             isDrawing = false; 
             c.releasePointerCapture(e.pointerId);
         }
     };
+
+    // KILL CLICK EVENT
+    // Dies fängt das "Klick"-Event ab, das NACH pointerup gefeuert wird.
+    // capture: true sorgt dafür, dass wir das Event vor Marp bekommen.
+    const killClick = (e) => {
+        if (currentTool !== 'none') {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+    };
     
-    // Wir nutzen NUR NOCH Pointer Events (vereint Maus, Touch, Pen)
     c.addEventListener('pointerdown', start); 
     c.addEventListener('pointermove', move);
     c.addEventListener('pointerup', end); 
     c.addEventListener('pointercancel', end);
-    c.addEventListener('pointerout', end);
+    
+    // Event auf 'capture' Phase setzen, um es vor Marp abzufangen
+    c.addEventListener('click', killClick, true);
   };
 
-  // --- TOOLBAR & MENUS ---
+  // --- TOOLBAR ---
   window.setMpsTool = (t) => {
     currentTool = t;
-    document.querySelectorAll('.mps-canvas-layer').forEach(c => c.style.pointerEvents = (t === 'none') ? 'none' : 'auto');
-    document.querySelectorAll('.mps-tool').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.mps-canvas-layer').forEach(c => {
+        // 'auto' aktiviert Pointer-Events (Zeichnen möglich)
+        // 'none' lässt Klicks zur Folie durch (Markieren, Links)
+        c.style.pointerEvents = (t === 'none') ? 'none' : 'auto';
+    });
     
+    document.querySelectorAll('.mps-tool').forEach(b => b.classList.remove('active'));
     if (t === 'black') document.querySelector('.btn-blk').classList.add('active');
     if (t === 'red') document.querySelector('.btn-red').classList.add('active');
     if (t === 'green') document.querySelector('.btn-grn').classList.add('active');
@@ -324,7 +352,6 @@ module.exports = `
   window.addEventListener('hashchange', () => setTimeout(checkTimer, 50));
   window.addEventListener('keyup', (e) => { if(e.key.startsWith('Arrow') || e.key === 'PageUp' || e.key === 'PageDown') setTimeout(checkTimer, 50); });
   
-  // Init
   setTimeout(initCanvases, 100);
 })();
 </script>
