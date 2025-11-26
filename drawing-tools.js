@@ -1,6 +1,3 @@
-// drawing-tools.js
-
-// Wir exportieren den HTML-String als Modul
 module.exports = `
 <style>
   /* === UI GENEREL === */
@@ -10,7 +7,11 @@ module.exports = `
   .mps-drop-btn { min-width: 80px; justify-content: space-between; }
   
   /* Canvas Overlay */
-  .mps-canvas-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; touch-action: none; }
+  /* WICHTIG: touch-action: none verhindert Scrollen beim Malen auf iPad */
+  .mps-canvas-layer { 
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+      z-index: 1; pointer-events: none; touch-action: none; 
+  }
   
   /* Tool Icons */
   .mps-tool { width: 40px; padding: 0; border-radius: 50%; border: 3px solid transparent; font-size: 18px; }
@@ -23,29 +24,16 @@ module.exports = `
 
   /* === TIMER WIDGET === */
   #mps-timer-widget {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: rgba(31, 42, 54, 0.95);
-      border: 2px solid #3498db;
-      border-radius: 12px;
-      padding: 10px 15px;
-      display: none; /* Standardmäßig versteckt */
-      flex-direction: column;
-      align-items: center;
-      gap: 5px;
-      z-index: 9999;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-      min-width: 140px;
-      pointer-events: auto;
+      position: fixed; top: 20px; right: 20px;
+      background: rgba(31, 42, 54, 0.95); border: 2px solid #3498db;
+      border-radius: 12px; padding: 10px 15px;
+      display: none; flex-direction: column; align-items: center; gap: 5px;
+      z-index: 9999; box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+      min-width: 140px; pointer-events: auto;
   }
   #mps-timer-display {
-      font-family: 'Courier New', monospace;
-      font-size: 32px;
-      font-weight: bold;
-      color: #fff;
-      text-align: center;
-      letter-spacing: 2px;
+      font-family: 'Courier New', monospace; font-size: 32px; font-weight: bold;
+      color: #fff; text-align: center; letter-spacing: 2px;
   }
   .mps-timer-controls { display: flex; gap: 8px; margin-top: 5px; }
   .mps-timer-btn {
@@ -56,7 +44,6 @@ module.exports = `
   .mps-timer-finished { color: #e74c3c !important; animation: blink 1s infinite; }
   @keyframes blink { 50% { opacity: 0.5; } }
 
-  /* Farben */
   .btn-blk { background: #2c3e50; }
   .btn-red { background: #e74c3c; }
   .btn-grn { background: #27ae60; }
@@ -118,16 +105,7 @@ module.exports = `
   let penWidth = 5;
   let eraserWidth = 30;
 
-  // --- HELPER: FINDE AKTIVE SECTION ---
-  const getActiveSection = () => {
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
-    const hitElement = document.elementFromPoint(centerX, centerY);
-    if (hitElement) return hitElement.closest('section');
-    return document.querySelector('section'); // Fallback
-  };
-
-  // --- INIT CANVASES ---
+  // --- INIT LOGIC ---
   const initCanvases = () => {
     document.querySelectorAll('section').forEach((sec, index) => {
       if (sec.querySelector('.mps-canvas-layer')) return;
@@ -135,7 +113,7 @@ module.exports = `
       const c = document.createElement('canvas');
       c.className = 'mps-canvas-layer';
       c.id = 'canvas-slide-' + (index + 1);
-      attachEvents(c);
+      attachEvents(c); // Hier werden jetzt Pointer Events genutzt
       sec.appendChild(c);
       resizeCanvas(c);
     });
@@ -157,42 +135,79 @@ module.exports = `
     });
   });
 
-  // --- ZEICHEN LOGIK ---
+  // --- ZEICHEN LOGIK (JETZT MIT POINTER EVENTS) ---
+  
+  // Vereinfachte Koordinatenberechnung für Pointer Events
   const getPos = (c, e) => {
     const rect = c.getBoundingClientRect();
     const scaleX = c.width / rect.width;
     const scaleY = c.height / rect.height;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+    
+    // Pointer Events haben immer clientX/Y, egal ob Maus oder Stift
+    return { 
+      x: (e.clientX - rect.left) * scaleX, 
+      y: (e.clientY - rect.top) * scaleY 
+    };
   };
 
   const attachEvents = (c) => {
     const ctx = c.getContext('2d');
+    
+    // Pointer Down (Start)
     const start = (e) => {
       if (currentTool === 'none') return;
+      // Verhindert Scrolling auf iPad
+      e.preventDefault(); 
+      
       isDrawing = true;
+      
+      // Canvas Capture (wichtig damit der Strich nicht abbricht, wenn man rausmalt)
+      c.setPointerCapture(e.pointerId);
+      
       const p = getPos(c, e);
-      ctx.beginPath(); ctx.moveTo(p.x, p.y);
+      ctx.beginPath(); 
+      ctx.moveTo(p.x, p.y);
     };
+    
+    // Pointer Move (Zeichnen)
     const move = (e) => {
       if (!isDrawing || currentTool === 'none') return;
-      e.preventDefault();
+      e.preventDefault(); // WICHTIG: Verhindert Scrollen beim Malen
+      
       const p = getPos(c, e);
-      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      
+      ctx.lineCap = 'round'; 
+      ctx.lineJoin = 'round';
       ctx.lineWidth = currentTool === 'eraser' ? eraserWidth : penWidth;
       ctx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
       ctx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
-      ctx.lineTo(p.x, p.y); ctx.stroke();
+      
+      // Optional: Apple Pencil Druckerkennung (e.pressure)
+      // Wenn du willst, dass festeres Drücken dickere Linien macht, 
+      // kommentiere die nächste Zeile ein:
+      // if (currentTool !== 'eraser') ctx.lineWidth = penWidth * (0.5 + e.pressure);
+
+      ctx.lineTo(p.x, p.y); 
+      ctx.stroke();
     };
-    const end = () => { isDrawing = false; };
     
-    c.addEventListener('mousedown', start); c.addEventListener('mousemove', move);
-    c.addEventListener('mouseup', end); c.addEventListener('mouseout', end);
-    c.addEventListener('touchstart', start, {passive: false}); c.addEventListener('touchmove', move, {passive: false}); c.addEventListener('touchend', end);
+    // Pointer Up/Cancel (Ende)
+    const end = (e) => { 
+        if(isDrawing) {
+            isDrawing = false; 
+            c.releasePointerCapture(e.pointerId);
+        }
+    };
+    
+    // Wir nutzen NUR NOCH Pointer Events (vereint Maus, Touch, Pen)
+    c.addEventListener('pointerdown', start); 
+    c.addEventListener('pointermove', move);
+    c.addEventListener('pointerup', end); 
+    c.addEventListener('pointercancel', end);
+    c.addEventListener('pointerout', end);
   };
 
-  // --- TOOLBAR ---
+  // --- TOOLBAR & MENUS ---
   window.setMpsTool = (t) => {
     currentTool = t;
     document.querySelectorAll('.mps-canvas-layer').forEach(c => c.style.pointerEvents = (t === 'none') ? 'none' : 'auto');
@@ -217,11 +232,17 @@ module.exports = `
       if (!e.target.closest('#mps-footer')) document.querySelectorAll('.mps-popover').forEach(p => p.style.display = 'none');
   });
 
+  // --- CLEAR FUNCTION (Raycasting) ---
   window.clearVisibleSlide = () => {
-    const sec = getActiveSection();
-    if (sec) {
-        const c = sec.querySelector('canvas.mps-canvas-layer');
-        if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    const hitElement = document.elementFromPoint(centerX, centerY);
+    if (hitElement) {
+        const sec = hitElement.closest('section');
+        if (sec) {
+            const c = sec.querySelector('canvas.mps-canvas-layer');
+            if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+        }
     }
   };
   
@@ -241,8 +262,7 @@ module.exports = `
       const s = remainingSeconds % 60;
       const display = document.getElementById('mps-timer-display');
       display.textContent = \`\${m.toString().padStart(2,'0')}:\${s.toString().padStart(2,'0')}\`;
-      const btn = document.getElementById('btn-timer-toggle');
-      btn.textContent = isTimerRunning ? '⏸' : '▶';
+      document.getElementById('btn-timer-toggle').textContent = isTimerRunning ? '⏸' : '▶';
       if (remainingSeconds <= 0 && !isTimerRunning && defaultSeconds > 0) display.classList.add('mps-timer-finished');
       else display.classList.remove('mps-timer-finished');
   };
@@ -268,53 +288,43 @@ module.exports = `
       }, 1000);
   };
 
-  window.timerToggle = () => {
-      if (isTimerRunning) stopTimer();
-      else startTimer();
-  };
-
-  window.timerReset = () => {
-      stopTimer();
-      remainingSeconds = defaultSeconds;
-      document.getElementById('mps-timer-display').classList.remove('mps-timer-finished');
-      updateTimerDisplay();
-  };
-  
-  window.timerAdd = (mins) => {
-      remainingSeconds += (mins * 60);
-      updateTimerDisplay();
-      if(isTimerRunning) document.getElementById('mps-timer-display').classList.remove('mps-timer-finished');
-  }
+  window.timerToggle = () => { isTimerRunning ? stopTimer() : startTimer(); };
+  window.timerReset = () => { stopTimer(); remainingSeconds = defaultSeconds; document.getElementById('mps-timer-display').classList.remove('mps-timer-finished'); updateTimerDisplay(); };
+  window.timerAdd = (mins) => { remainingSeconds += (mins * 60); updateTimerDisplay(); if(isTimerRunning) document.getElementById('mps-timer-display').classList.remove('mps-timer-finished'); };
 
   const checkTimer = () => {
-      const sec = getActiveSection();
-      const widget = document.getElementById('mps-timer-widget');
-      stopTimer();
-      if (sec) {
-          const timerEl = sec.querySelector('[data-timer]');
-          if (timerEl) {
-              const val = timerEl.getAttribute('data-timer');
-              let seconds = 0;
-              if (val.includes(':')) {
-                  const parts = val.split(':');
-                  seconds = (parseInt(parts[0]) * 60) + parseInt(parts[1]);
-              } else {
-                  seconds = parseInt(val) * 60;
-              }
-              defaultSeconds = seconds;
-              remainingSeconds = seconds;
-              widget.style.display = 'flex';
-              startTimer(); 
-          } else {
-              widget.style.display = 'none';
-          }
-      }
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    const hitElement = document.elementFromPoint(centerX, centerY);
+    const sec = hitElement ? hitElement.closest('section') : document.querySelector('section');
+    const widget = document.getElementById('mps-timer-widget');
+    
+    stopTimer();
+    if (sec) {
+        const timerEl = sec.querySelector('[data-timer]');
+        if (timerEl) {
+            const val = timerEl.getAttribute('data-timer');
+            let seconds = 0;
+            if (val.includes(':')) {
+                const parts = val.split(':');
+                seconds = (parseInt(parts[0]) * 60) + parseInt(parts[1]);
+            } else {
+                seconds = parseInt(val) * 60;
+            }
+            defaultSeconds = seconds;
+            remainingSeconds = seconds;
+            widget.style.display = 'flex';
+            startTimer(); 
+        } else {
+            widget.style.display = 'none';
+        }
+    }
   };
 
   window.addEventListener('hashchange', () => setTimeout(checkTimer, 50));
-  window.addEventListener('keyup', (e) => {
-      if(e.key.startsWith('Arrow') || e.key === 'PageUp' || e.key === 'PageDown') setTimeout(checkTimer, 50);
-  });
+  window.addEventListener('keyup', (e) => { if(e.key.startsWith('Arrow') || e.key === 'PageUp' || e.key === 'PageDown') setTimeout(checkTimer, 50); });
+  
+  // Init
   setTimeout(initCanvases, 100);
 })();
 </script>
