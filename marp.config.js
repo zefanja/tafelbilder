@@ -11,6 +11,9 @@ module.exports = {
   output: './public/slides',
   themeSet: './themes/*.css',
   html: true,
+  bespoke: {
+    osc: false,
+  },
   
   engine: class extends Marp {
     constructor(opts) {
