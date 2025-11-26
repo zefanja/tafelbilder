@@ -6,13 +6,16 @@ module.exports = `
   .mps-btn:active { transform: scale(0.95); }
   .mps-drop-btn { min-width: 80px; justify-content: space-between; }
   
-  /* Canvas Layer */
+  /* Canvas Layer - Touch Action None ist entscheidend für iPad! */
   .mps-canvas-layer { 
       position: absolute; top: 0; left: 0; 
       width: 100%; height: 100%; 
       z-index: 1; 
       pointer-events: none; 
-      touch-action: none !important; /* WICHTIG für iPad */
+      touch-action: none !important; /* Verhindert nativen Zoom/Scroll */
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
   }
   
   /* Tool Icons */
@@ -100,21 +103,16 @@ module.exports = `
   let isDrawing = false;
   let penWidth = 5;
   let eraserWidth = 30;
-  
-  // Ghost Click Prevention
   let lastDrawTime = 0;
 
-  // --- INIT LOGIC ---
+  // --- INIT ---
   const initCanvases = () => {
     document.querySelectorAll('section').forEach((sec, index) => {
       if (sec.querySelector('.mps-canvas-layer')) return;
-      
       sec.style.position = 'relative'; 
-      
       const c = document.createElement('canvas');
       c.className = 'mps-canvas-layer';
       c.id = 'canvas-slide-' + (index + 1);
-      
       attachEvents(c);
       sec.appendChild(c);
       resizeCanvas(c);
@@ -125,62 +123,53 @@ module.exports = `
   const resizeCanvas = (c) => {
     const rect = c.parentElement.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    
-    // Interne Auflösung hochsetzen (Retina)
     c.width = Math.round(rect.width * dpr);
     c.height = Math.round(rect.height * dpr);
-    
-    // CSS-Größe anpassen (damit es passt)
     c.style.width = rect.width + 'px';
     c.style.height = rect.height + 'px';
-    
-    // WICHTIG: Wir nutzen KEIN ctx.scale() mehr! 
-    // Wir rechnen die Koordinaten selbst um. Das ist präziser bei Marp-Transforms.
+    // KEIN ctx.scale()! Wir machen das manuell.
   };
   
   window.addEventListener('resize', () => {
     document.querySelectorAll('.mps-canvas-layer').forEach(c => resizeCanvas(c));
   });
 
-  // --- KOORDINATEN BERECHNUNG (Raw Math) ---
+  // --- COORDS (Retina + Marp Zoom Safe) ---
   const getPos = (c, e) => {
     const rect = c.getBoundingClientRect();
-    
-    // Wir berechnen das Verhältnis zwischen "Bildschirmpixeln" und "Canvas-Internen Pixeln"
+    // Interne Auflösung / Sichtbare Größe
     const scaleX = c.width / rect.width;
     const scaleY = c.height / rect.height;
     
-    // Mausposition relativ zum Canvas-Eckpunkt
-    const relativeX = e.clientX - rect.left;
-    const relativeY = e.clientY - rect.top;
-    
-    // Umrechnung in interne Canvas-Koordinaten
+    // Pointer Events liefern clientX/Y auch für Touch/Pen
     return { 
-      x: relativeX * scaleX, 
-      y: relativeY * scaleY 
+      x: (e.clientX - rect.left) * scaleX, 
+      y: (e.clientY - rect.top) * scaleY 
     };
   };
 
   const attachEvents = (c) => {
     const ctx = c.getContext('2d');
     
-    // --- IPAD SCROLL BLOCKER (WICHTIG!) ---
-    // Verhindert, dass iOS das Berühren als Scrollen oder Zoomen interpretiert
-    c.addEventListener('touchstart', (e) => {
-        if (currentTool !== 'none') {
-            e.preventDefault(); // Stoppt Scrolling/Zooming sofort
-        }
-    }, { passive: false }); // passive: false ist zwingend nötig für preventDefault
+    // 1. IPAD SCROLL BLOCKER
+    // Wir blockieren Scrollen NUR beim Move, nicht beim Start.
+    // Das lässt das iPad den Stift erkennen, verhindert aber das Wischen.
+    c.addEventListener('touchmove', (e) => {
+        if (currentTool !== 'none') e.preventDefault();
+    }, { passive: false });
 
-    // --- POINTER EVENTS (Maus, Stift, Touch) ---
+
+    // 2. POINTER EVENTS (Der Standard für alles)
     const start = (e) => {
       if (currentTool === 'none') return;
       
-      e.stopPropagation(); 
+      // Nur primärer Zeiger (verhindert Multitouch-Chaos)
+      if (!e.isPrimary) return;
+
       e.preventDefault(); 
-      
       isDrawing = true;
-      c.setPointerCapture(e.pointerId);
+      
+      try { c.setPointerCapture(e.pointerId); } catch(err){}
       
       const p = getPos(c, e);
       ctx.beginPath(); 
@@ -189,16 +178,16 @@ module.exports = `
     
     const move = (e) => {
       if (!isDrawing) return;
-      
-      e.stopPropagation();
+      if (currentTool === 'none') return;
+
+      // Verhindert Browser-Aktionen
       e.preventDefault(); 
       
       const p = getPos(c, e);
       
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       
-      // Dicke anpassen basierend auf Skalierung
-      // Damit die Linie bei Retina-Displays nicht zu dünn wirkt
+      // Dicke anpassen für Retina-Auflösung
       const scaleFactor = c.width / c.getBoundingClientRect().width;
       ctx.lineWidth = (currentTool === 'eraser' ? eraserWidth : penWidth) * scaleFactor;
       
@@ -211,11 +200,9 @@ module.exports = `
     
     const end = (e) => { 
         if(isDrawing) {
-            e.stopPropagation();
             isDrawing = false; 
-            c.releasePointerCapture(e.pointerId);
-            // Zeitstempel setzen für den Global Click Blocker
-            lastDrawTime = Date.now();
+            try { c.releasePointerCapture(e.pointerId); } catch(err){}
+            lastDrawTime = Date.now(); // Zeitstempel für Click-Killer
         }
     };
     
@@ -225,28 +212,26 @@ module.exports = `
     c.addEventListener('pointercancel', end);
   };
 
-  // --- GLOBAL CLICK KILLER (Gegen ungewolltes Blättern) ---
-  // Wir hängen uns ganz oben ins Fenster und fangen Klicks ab
+  // --- GHOST CLICK KILLER ---
+  // Fängt Klicks ab, die kurz nach dem Zeichnen passieren (typisch iPad)
   window.addEventListener('click', (e) => {
-      const timeSinceDraw = Date.now() - lastDrawTime;
-      // Wenn vor weniger als 500ms gezeichnet wurde, ist das ein Ghost-Click
-      if (timeSinceDraw < 500 && currentTool !== 'none') {
-          e.stopPropagation();
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          console.log('Ghost click blocked');
-          return false;
-      }
-      
-      // Wenn wir gerade ein Tool aktiv haben und auf den Canvas klicken
+      // Wenn wir ein Tool haben UND auf den Canvas klicken -> Blockieren
       if (currentTool !== 'none' && e.target.classList.contains('mps-canvas-layer')) {
           e.stopPropagation();
           e.preventDefault();
+          return false;
       }
-  }, true); // "true" aktiviert die Capture-Phase (fängt Events VOR Marp ab)
+      
+      // Sicherheitsnetz: Wenn vor <300ms gezeichnet wurde -> Blockieren
+      if (Date.now() - lastDrawTime < 300) {
+          e.stopPropagation();
+          e.preventDefault();
+          return false;
+      }
+  }, true); // Capture Phase!
 
 
-  // --- TOOLBAR & RESTLICHE LOGIK ---
+  // --- TOOLBAR ---
   window.setMpsTool = (t) => {
     currentTool = t;
     document.querySelectorAll('.mps-canvas-layer').forEach(c => {
