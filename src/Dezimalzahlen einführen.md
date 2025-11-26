@@ -33,9 +33,9 @@ Stellenwerttafel erweitern
 Stellenwerttafel erweitern
 </div>
 
-| Zehner (Z) | Einer (E) | Komma | Zehntel (z) |
+| Zehner (Z) | Einer (E) | ++Komma++ | ++Zehntel (z)++ |
 | :---: | :---: | :---: | :---: |
-|  |  | , | $\frac{1}{10}$ | 
+|  |  | , | ++$\frac{1}{10}$++ | 
 | | | $\space$ | | |
 
 <br>
