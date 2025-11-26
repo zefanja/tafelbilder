@@ -1,19 +1,18 @@
 module.exports = `
 <style>
-  /* === UI GENEREL === */
+  /* === UI === */
   #mps-footer { position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; background: #2c3e50; display: flex; align-items: center; justify-content: center; z-index: 9999; gap: 10px; font-family: sans-serif; border-top: 2px solid #34495e; }
   .mps-btn { background: #3498db; color: white; border: none; padding: 0 14px; cursor: pointer; border-radius: 8px; font-weight: bold; font-size: 14px; transition: transform 0.1s; height: 40px; display: flex; align-items: center; justify-content: center;}
   .mps-btn:active { transform: scale(0.95); }
   .mps-drop-btn { min-width: 80px; justify-content: space-between; }
   
-  /* Canvas Overlay */
-  /* WICHTIG: width/height 100% sorgt für korrekte Abdeckung */
+  /* Canvas Layer */
   .mps-canvas-layer { 
       position: absolute; top: 0; left: 0; 
       width: 100%; height: 100%; 
       z-index: 1; 
       pointer-events: none; 
-      touch-action: none !important; 
+      touch-action: none !important; /* WICHTIG für iPad */
   }
   
   /* Tool Icons */
@@ -25,7 +24,7 @@ module.exports = `
   .mps-popover button { background: #3498db; color: white; border: none; border-radius: 6px; padding: 6px 12px; font-weight: bold; cursor: pointer; font-size: 12px; }
   .mps-popover button:hover { background: #2980b9; }
 
-  /* === TIMER WIDGET === */
+  /* Timer */
   #mps-timer-widget {
       position: fixed; top: 20px; right: 20px;
       background: rgba(31, 42, 54, 0.95); border: 2px solid #3498db;
@@ -34,15 +33,9 @@ module.exports = `
       z-index: 9999; box-shadow: 0 8px 20px rgba(0,0,0,0.4);
       min-width: 140px; pointer-events: auto;
   }
-  #mps-timer-display {
-      font-family: 'Courier New', monospace; font-size: 32px; font-weight: bold;
-      color: #fff; text-align: center; letter-spacing: 2px;
-  }
+  #mps-timer-display { font-family: 'Courier New', monospace; font-size: 32px; font-weight: bold; color: #fff; text-align: center; letter-spacing: 2px; }
   .mps-timer-controls { display: flex; gap: 8px; margin-top: 5px; }
-  .mps-timer-btn {
-      background: #34495e; color: #fff; border: 1px solid #555;
-      border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 12px;
-  }
+  .mps-timer-btn { background: #34495e; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 12px; }
   .mps-timer-btn:hover { background: #3498db; }
   .mps-timer-finished { color: #e74c3c !important; animation: blink 1s infinite; }
   @keyframes blink { 50% { opacity: 0.5; } }
@@ -107,13 +100,15 @@ module.exports = `
   let isDrawing = false;
   let penWidth = 5;
   let eraserWidth = 30;
+  
+  // Ghost Click Prevention
+  let lastDrawTime = 0;
 
   // --- INIT LOGIC ---
   const initCanvases = () => {
     document.querySelectorAll('section').forEach((sec, index) => {
       if (sec.querySelector('.mps-canvas-layer')) return;
       
-      // Canvas muss das erste Kind sein oder absolut positioniert
       sec.style.position = 'relative'; 
       
       const c = document.createElement('canvas');
@@ -122,67 +117,65 @@ module.exports = `
       
       attachEvents(c);
       sec.appendChild(c);
-      
-      // Erstes Setup
       resizeCanvas(c);
     });
     setTimeout(checkTimer, 200); 
   };
 
-  // --- RETINA RESIZE LOGIC ---
   const resizeCanvas = (c) => {
-    // Wir holen die ECHTE angezeigte Größe auf dem Bildschirm
     const rect = c.parentElement.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     
-    // Setze die interne Pixel-Auflösung hoch für Schärfe
-    c.width = Math.floor(rect.width * dpr);
-    c.height = Math.floor(rect.height * dpr);
+    // Interne Auflösung hochsetzen (Retina)
+    c.width = Math.round(rect.width * dpr);
+    c.height = Math.round(rect.height * dpr);
     
-    // WICHTIG: Wir setzen KEINE style.width/height hier via JS!
-    // Das erledigt das CSS (width: 100%; height: 100%)
-    // Das verhindert den "Offset"-Bug bei Marp-Skalierung.
+    // CSS-Größe anpassen (damit es passt)
+    c.style.width = rect.width + 'px';
+    c.style.height = rect.height + 'px';
     
-    const ctx = c.getContext('2d');
-    // Damit wir weiterhin in logischen Pixeln denken können:
-    ctx.scale(dpr, dpr);
+    // WICHTIG: Wir nutzen KEIN ctx.scale() mehr! 
+    // Wir rechnen die Koordinaten selbst um. Das ist präziser bei Marp-Transforms.
   };
   
   window.addEventListener('resize', () => {
-    document.querySelectorAll('.mps-canvas-layer').forEach(c => {
-       // Bei Resize einfach neu anpassen.
-       // (Zeichnung geht verloren bei Resize, das ist bei Web-Canvas normaler Trade-off für Performance)
-       resizeCanvas(c);
-    });
+    document.querySelectorAll('.mps-canvas-layer').forEach(c => resizeCanvas(c));
   });
 
-  // --- KOORDINATEN LOGIK (Bulletproof) ---
+  // --- KOORDINATEN BERECHNUNG (Raw Math) ---
   const getPos = (c, e) => {
-    // Hole die aktuelle Position und Größe des Canvas im Viewport
     const rect = c.getBoundingClientRect();
     
-    // Berechne Skalierungsfaktor: 
-    // Interne Auflösung (c.width) geteilt durch sichtbare Breite (rect.width)
-    // Wenn CSS sagt "width: 100%", ist rect.width die Slide-Breite.
-    // Aber c.width ist rect.width * dpr (wegen Retina Fix oben).
-    // Da wir ctx.scale(dpr, dpr) nutzen, müssen wir die Mauskoordinaten 
-    // NICHT manuell mit dpr multiplizieren, das macht der Context.
+    // Wir berechnen das Verhältnis zwischen "Bildschirmpixeln" und "Canvas-Internen Pixeln"
+    const scaleX = c.width / rect.width;
+    const scaleY = c.height / rect.height;
     
-    // Wir müssen nur sicherstellen, dass wir relativ zum Element sind.
-    // Aber Achtung: Wenn Marp zoomt, stimmt rect.width nicht mit dem "Layout" überein.
+    // Mausposition relativ zum Canvas-Eckpunkt
+    const relativeX = e.clientX - rect.left;
+    const relativeY = e.clientY - rect.top;
     
-    // Die sicherste Methode bei transformierten Eltern (Marp):
+    // Umrechnung in interne Canvas-Koordinaten
     return { 
-      x: (e.clientX - rect.left), 
-      y: (e.clientY - rect.top)
+      x: relativeX * scaleX, 
+      y: relativeY * scaleY 
     };
   };
 
   const attachEvents = (c) => {
     const ctx = c.getContext('2d');
     
+    // --- IPAD SCROLL BLOCKER (WICHTIG!) ---
+    // Verhindert, dass iOS das Berühren als Scrollen oder Zoomen interpretiert
+    c.addEventListener('touchstart', (e) => {
+        if (currentTool !== 'none') {
+            e.preventDefault(); // Stoppt Scrolling/Zooming sofort
+        }
+    }, { passive: false }); // passive: false ist zwingend nötig für preventDefault
+
+    // --- POINTER EVENTS (Maus, Stift, Touch) ---
     const start = (e) => {
       if (currentTool === 'none') return;
+      
       e.stopPropagation(); 
       e.preventDefault(); 
       
@@ -195,20 +188,20 @@ module.exports = `
     };
     
     const move = (e) => {
-      if(isDrawing) { e.stopPropagation(); e.preventDefault(); }
+      if (!isDrawing) return;
       
-      if (!isDrawing || currentTool === 'none') return;
+      e.stopPropagation();
+      e.preventDefault(); 
       
       const p = getPos(c, e);
       
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       
-      // Berechnung der Dicke relativ zum Zoom
-      // Damit der Stift nicht riesig wird, wenn Marp rauszoomt
-      const rect = c.getBoundingClientRect();
-      const scaleFactor = 1; // Vereinfacht, da wir ctx.scale nutzen
+      // Dicke anpassen basierend auf Skalierung
+      // Damit die Linie bei Retina-Displays nicht zu dünn wirkt
+      const scaleFactor = c.width / c.getBoundingClientRect().width;
+      ctx.lineWidth = (currentTool === 'eraser' ? eraserWidth : penWidth) * scaleFactor;
       
-      ctx.lineWidth = currentTool === 'eraser' ? eraserWidth : penWidth;
       ctx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
       ctx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
       
@@ -221,27 +214,46 @@ module.exports = `
             e.stopPropagation();
             isDrawing = false; 
             c.releasePointerCapture(e.pointerId);
+            // Zeitstempel setzen für den Global Click Blocker
+            lastDrawTime = Date.now();
         }
-    };
-    
-    // Klick-Blocker
-    const killClick = (e) => {
-        if (currentTool !== 'none') { e.stopPropagation(); e.preventDefault(); }
     };
     
     c.addEventListener('pointerdown', start); 
     c.addEventListener('pointermove', move);
     c.addEventListener('pointerup', end); 
     c.addEventListener('pointercancel', end);
-    c.addEventListener('click', killClick, true);
   };
 
-  // --- TOOLBAR ---
+  // --- GLOBAL CLICK KILLER (Gegen ungewolltes Blättern) ---
+  // Wir hängen uns ganz oben ins Fenster und fangen Klicks ab
+  window.addEventListener('click', (e) => {
+      const timeSinceDraw = Date.now() - lastDrawTime;
+      // Wenn vor weniger als 500ms gezeichnet wurde, ist das ein Ghost-Click
+      if (timeSinceDraw < 500 && currentTool !== 'none') {
+          e.stopPropagation();
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          console.log('Ghost click blocked');
+          return false;
+      }
+      
+      // Wenn wir gerade ein Tool aktiv haben und auf den Canvas klicken
+      if (currentTool !== 'none' && e.target.classList.contains('mps-canvas-layer')) {
+          e.stopPropagation();
+          e.preventDefault();
+      }
+  }, true); // "true" aktiviert die Capture-Phase (fängt Events VOR Marp ab)
+
+
+  // --- TOOLBAR & RESTLICHE LOGIK ---
   window.setMpsTool = (t) => {
     currentTool = t;
-    document.querySelectorAll('.mps-canvas-layer').forEach(c => c.style.pointerEvents = (t === 'none') ? 'none' : 'auto');
-    document.querySelectorAll('.mps-tool').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.mps-canvas-layer').forEach(c => {
+        c.style.pointerEvents = (t === 'none') ? 'none' : 'auto';
+    });
     
+    document.querySelectorAll('.mps-tool').forEach(b => b.classList.remove('active'));
     if (t === 'black') document.querySelector('.btn-blk').classList.add('active');
     if (t === 'red') document.querySelector('.btn-red').classList.add('active');
     if (t === 'green') document.querySelector('.btn-grn').classList.add('active');
@@ -261,7 +273,6 @@ module.exports = `
       if (!e.target.closest('#mps-footer')) document.querySelectorAll('.mps-popover').forEach(p => p.style.display = 'none');
   });
 
-  // --- CLEAR FUNCTION ---
   window.clearVisibleSlide = () => {
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
@@ -280,7 +291,7 @@ module.exports = `
       else if (document.exitFullscreen) document.exitFullscreen();
   };
 
-  // --- TIMER LOGIC ---
+  // --- TIMER ---
   let timerInterval = null;
   let remainingSeconds = 0;
   let defaultSeconds = 0;
