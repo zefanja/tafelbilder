@@ -8,26 +8,32 @@ module.exports = `
   
   /* CANVAS LAYER - iOS OPTIMIZED */
   .mps-canvas-layer { 
-      position: absolute; top: 0; left: 0; 
-      width: 100%; height: 100%; 
-      z-index: 1; 
+      position: fixed !important;
+      top: 0 !important; 
+      left: 0 !important; 
+      width: 100vw !important; 
+      height: 100vh !important; 
+      z-index: 1000; 
       
-      /* Kritisch für iPad: Deaktiviert ALLE Browser-Gesten */
+      /* Kritisch für iPad */
       touch-action: none !important; 
       -webkit-touch-callout: none !important;
       -webkit-user-select: none !important;
       user-select: none !important;
       -webkit-tap-highlight-color: transparent !important;
       
-      /* Lässt Klicks durch, wenn kein Tool aktiv ist */
       pointer-events: none; 
+  }
+  
+  .mps-canvas-layer.active {
+      pointer-events: auto !important;
   }
   
   /* Icons & Popovers */
   .mps-tool { width: 40px; padding: 0; border-radius: 50%; border: 3px solid transparent; font-size: 18px; }
   .mps-tool.active { border-color: white; box-shadow: 0 0 8px rgba(255,255,255,0.6); transform: scale(1.1); }
   
-  .mps-popover { position: absolute; bottom: 70px; background: #1f2a36; border: 2px solid #34495e; border-radius: 10px; padding: 8px; display: none; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .mps-popover { position: absolute; bottom: 70px; background: #1f2a36; border: 2px solid #34495e; border-radius: 10px; padding: 8px; display: none; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; }
   .mps-popover button { background: #3498db; color: white; border: none; border-radius: 6px; padding: 6px 12px; font-weight: bold; cursor: pointer; font-size: 12px; }
   .mps-popover button:hover { background: #2980b9; }
 
@@ -109,104 +115,102 @@ module.exports = `
   
   let penWidth = 5;
   let eraserWidth = 30;
+  
+  let globalCanvas = null;
+  let globalCtx = null;
 
-  // --- INIT (mit längerer Wartezeit für MARP) ---
-  const initCanvases = () => {
-    document.querySelectorAll('section').forEach((sec, index) => {
-      if (sec.querySelector('.mps-canvas-layer')) return;
-      sec.style.position = 'relative'; 
-      const c = document.createElement('canvas');
-      c.className = 'mps-canvas-layer';
-      c.id = 'canvas-slide-' + (index + 1);
-      attachEvents(c);
-      sec.appendChild(c);
-      resizeCanvas(c);
-    });
-    setTimeout(checkTimer, 200); 
+  // --- INIT: Ein einziger Canvas für alles ---
+  const initCanvas = () => {
+    if (globalCanvas) return;
+    
+    globalCanvas = document.createElement('canvas');
+    globalCanvas.className = 'mps-canvas-layer';
+    globalCanvas.id = 'mps-global-canvas';
+    document.body.appendChild(globalCanvas);
+    
+    globalCtx = globalCanvas.getContext('2d', { willReadFrequently: false });
+    
+    resizeCanvas();
+    attachEvents();
+    
+    setTimeout(checkTimer, 200);
   };
 
-  // --- RESIZE LOGIC ---
-  const resizeCanvas = (c) => {
-    const rect = c.parentElement.getBoundingClientRect();
+  // --- RESIZE ---
+  const resizeCanvas = () => {
+    if (!globalCanvas) return;
+    
     const dpr = window.devicePixelRatio || 1;
-    c.width = Math.round(rect.width * dpr);
-    c.height = Math.round(rect.height * dpr);
-    c.style.width = rect.width + 'px';
-    c.style.height = rect.height + 'px';
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    
+    globalCanvas.width = Math.round(w * dpr);
+    globalCanvas.height = Math.round(h * dpr);
+    globalCanvas.style.width = w + 'px';
+    globalCanvas.style.height = h + 'px';
   };
   
-  window.addEventListener('resize', () => {
-    document.querySelectorAll('.mps-canvas-layer').forEach(c => resizeCanvas(c));
-  });
+  window.addEventListener('resize', resizeCanvas);
 
-  // --- KOORDINATEN ---
-  const getPos = (c, e) => {
-    const rect = c.getBoundingClientRect();
-    const scaleX = c.width / rect.width;
-    const scaleY = c.height / rect.height;
+  // --- KOORDINATEN (einfach: direkt clientX/Y) ---
+  const getPos = (e) => {
+    const dpr = window.devicePixelRatio || 1;
     return { 
-      x: (e.clientX - rect.left) * scaleX, 
-      y: (e.clientY - rect.top) * scaleY 
+      x: e.clientX * dpr, 
+      y: e.clientY * dpr 
     };
   };
 
-  const attachEvents = (c) => {
-    const ctx = c.getContext('2d', { willReadFrequently: false });
-    
-    // START: Stift setzt auf
+  const attachEvents = () => {
+    // START
     const start = (e) => {
       if (currentTool === 'none') return;
       
-      // Verhindert alle Browser-Gesten sofort
       e.preventDefault();
       e.stopPropagation();
 
-      // Ignoriere weitere Finger wenn wir schon zeichnen
       if (isDrawing || activePointerId !== null) return;
       
       isDrawing = true;
       activePointerId = e.pointerId;
       
-      const p = getPos(c, e);
-      ctx.beginPath(); 
-      ctx.moveTo(p.x, p.y);
+      const p = getPos(e);
+      globalCtx.beginPath(); 
+      globalCtx.moveTo(p.x, p.y);
       
-      // Setze Pointer Capture NACH dem ersten moveTo
       setTimeout(() => {
         try { 
-          if (c.hasPointerCapture && !c.hasPointerCapture(e.pointerId)) {
-            c.setPointerCapture(e.pointerId); 
+          if (globalCanvas.hasPointerCapture && !globalCanvas.hasPointerCapture(e.pointerId)) {
+            globalCanvas.setPointerCapture(e.pointerId); 
           }
         } catch(err){}
       }, 0);
     };
     
-    // MOVE: Stift bewegt sich
+    // MOVE
     const move = (e) => {
       if (currentTool === 'none' || !isDrawing) return;
-      
-      // Nur auf den aktiven Pointer reagieren
       if (activePointerId !== e.pointerId) return;
 
       e.preventDefault();
       e.stopPropagation();
       
-      const p = getPos(c, e);
+      const p = getPos(e);
       
-      ctx.lineCap = 'round'; 
-      ctx.lineJoin = 'round';
+      globalCtx.lineCap = 'round'; 
+      globalCtx.lineJoin = 'round';
       
-      const scaleFactor = c.width / c.getBoundingClientRect().width;
-      ctx.lineWidth = (currentTool === 'eraser' ? eraserWidth : penWidth) * scaleFactor;
+      const dpr = window.devicePixelRatio || 1;
+      globalCtx.lineWidth = (currentTool === 'eraser' ? eraserWidth : penWidth) * dpr;
       
-      ctx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
-      ctx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
+      globalCtx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
+      globalCtx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
       
-      ctx.lineTo(p.x, p.y); 
-      ctx.stroke();
+      globalCtx.lineTo(p.x, p.y); 
+      globalCtx.stroke();
     };
     
-    // END: Stift hebt ab
+    // END
     const end = (e) => { 
       if (activePointerId !== e.pointerId) return;
       
@@ -217,43 +221,41 @@ module.exports = `
       activePointerId = null;
       
       try { 
-        if (c.hasPointerCapture && c.hasPointerCapture(e.pointerId)) {
-          c.releasePointerCapture(e.pointerId); 
+        if (globalCanvas.hasPointerCapture && globalCanvas.hasPointerCapture(e.pointerId)) {
+          globalCanvas.releasePointerCapture(e.pointerId); 
         }
       } catch(err){}
     };
     
-    // Pointer Events (primär)
-    c.addEventListener('pointerdown', start, { passive: false }); 
-    c.addEventListener('pointermove', move, { passive: false });
-    c.addEventListener('pointerup', end, { passive: false }); 
-    c.addEventListener('pointercancel', end, { passive: false });
-    // pointerout bewusst NICHT benutzt - unterbricht Striche
+    // Pointer Events
+    globalCanvas.addEventListener('pointerdown', start, { passive: false }); 
+    globalCanvas.addEventListener('pointermove', move, { passive: false });
+    globalCanvas.addEventListener('pointerup', end, { passive: false }); 
+    globalCanvas.addEventListener('pointercancel', end, { passive: false });
     
-    // Touch Events (Fallback für ältere iPads)
-    c.addEventListener('touchstart', (e) => {
+    // Touch Events Fallback
+    globalCanvas.addEventListener('touchstart', (e) => {
       if (currentTool !== 'none') {
         e.preventDefault();
         e.stopPropagation();
       }
     }, { passive: false });
     
-    c.addEventListener('touchmove', (e) => {
+    globalCanvas.addEventListener('touchmove', (e) => {
       if (currentTool !== 'none') {
         e.preventDefault();
         e.stopPropagation();
       }
     }, { passive: false });
     
-    c.addEventListener('touchend', (e) => {
+    globalCanvas.addEventListener('touchend', (e) => {
       if (currentTool !== 'none') {
         e.preventDefault();
         e.stopPropagation();
       }
     }, { passive: false });
     
-    // Verhindert Klicks nach Zeichnen
-    c.addEventListener('click', (e) => {
+    globalCanvas.addEventListener('click', (e) => {
       if(currentTool !== 'none') {
         e.preventDefault();
         e.stopPropagation();
@@ -261,15 +263,19 @@ module.exports = `
     }, { capture: true, passive: false });
   };
 
-  // --- TOOLBAR LOGIC ---
+  // --- TOOLBAR ---
   window.setMpsTool = (t) => {
     currentTool = t;
     isDrawing = false;
     activePointerId = null;
     
-    document.querySelectorAll('.mps-canvas-layer').forEach(c => {
-      c.style.pointerEvents = (t === 'none') ? 'none' : 'auto';
-    });
+    if (!globalCanvas) return;
+    
+    if (t === 'none') {
+      globalCanvas.classList.remove('active');
+    } else {
+      globalCanvas.classList.add('active');
+    }
     
     document.querySelectorAll('.mps-tool').forEach(b => b.classList.remove('active'));
     if (t === 'black') document.querySelector('.btn-blk').classList.add('active');
@@ -302,15 +308,8 @@ module.exports = `
   });
 
   window.clearVisibleSlide = () => {
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
-    const hitElement = document.elementFromPoint(centerX, centerY);
-    if (hitElement) {
-      const sec = hitElement.closest('section');
-      if (sec) {
-        const c = sec.querySelector('canvas.mps-canvas-layer');
-        if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
-      }
+    if (globalCtx) {
+      globalCtx.clearRect(0, 0, globalCanvas.width, globalCanvas.height);
     }
   };
   
@@ -414,8 +413,12 @@ module.exports = `
     }
   });
   
-  // Längere Wartezeit für MARP-Initialisierung
-  setTimeout(initCanvases, 300);
+  // Init
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(initCanvas, 300));
+  } else {
+    setTimeout(initCanvas, 300);
+  }
 })();
 </script>
 `;
