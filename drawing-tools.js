@@ -1,7 +1,8 @@
 module.exports = `
 <style>
   /* === UI === */
-  #mps-footer { position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; background: #2c3e50; display: flex; align-items: center; justify-content: center; z-index: 9999; gap: 10px; font-family: sans-serif; border-top: 2px solid #34495e; }
+  /* Z-Index auf Maximum erhöht (2147483647), damit es sicher über allen Slides liegt */
+  #mps-footer { position: fixed; bottom: 0; left: 0; width: 100%; height: 60px; background: #2c3e50; display: flex; align-items: center; justify-content: center; z-index: 2147483647; gap: 10px; font-family: sans-serif; border-top: 2px solid #34495e; }
   .mps-btn { background: #3498db; color: white; border: none; padding: 0 14px; cursor: pointer; border-radius: 8px; font-weight: bold; font-size: 14px; transition: transform 0.1s; height: 40px; display: flex; align-items: center; justify-content: center;}
   .mps-btn:active { transform: scale(0.95); }
   .mps-drop-btn { min-width: 80px; justify-content: space-between; }
@@ -13,9 +14,9 @@ module.exports = `
       left: 0 !important; 
       width: 100vw !important; 
       height: 100vh !important; 
-      z-index: 1000; 
+      z-index: 2147483646; /* Ein Level unter UI, aber über allem anderen */
       
-      /* Kritisch für iPad */
+      /* Kritisch für iPad / iOS */
       touch-action: none !important; 
       -webkit-touch-callout: none !important;
       -webkit-user-select: none !important;
@@ -33,7 +34,7 @@ module.exports = `
   .mps-tool { width: 40px; padding: 0; border-radius: 50%; border: 3px solid transparent; font-size: 18px; }
   .mps-tool.active { border-color: white; box-shadow: 0 0 8px rgba(255,255,255,0.6); transform: scale(1.1); }
   
-  .mps-popover { position: absolute; bottom: 70px; background: #1f2a36; border: 2px solid #34495e; border-radius: 10px; padding: 8px; display: none; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10000; }
+  .mps-popover { position: absolute; bottom: 70px; background: #1f2a36; border: 2px solid #34495e; border-radius: 10px; padding: 8px; display: none; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 2147483647; }
   .mps-popover button { background: #3498db; color: white; border: none; border-radius: 6px; padding: 6px 12px; font-weight: bold; cursor: pointer; font-size: 12px; }
   .mps-popover button:hover { background: #2980b9; }
 
@@ -43,7 +44,7 @@ module.exports = `
       background: rgba(31, 42, 54, 0.95); border: 2px solid #3498db;
       border-radius: 12px; padding: 10px 15px;
       display: none; flex-direction: column; align-items: center; gap: 5px;
-      z-index: 9999; box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+      z-index: 2147483647; box-shadow: 0 8px 20px rgba(0,0,0,0.4);
       min-width: 140px; pointer-events: auto;
   }
   #mps-timer-display { font-family: 'Courier New', monospace; font-size: 32px; font-weight: bold; color: #fff; text-align: center; letter-spacing: 2px; }
@@ -72,8 +73,8 @@ module.exports = `
 </div>
 
 <div id="mps-footer">
-  <button class="mps-btn" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{'key':'ArrowLeft'}))">←</button>
-  <button class="mps-btn" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{'key':'ArrowRight'}))">→</button>
+  <button class="mps-btn" onclick="navigateSlide('prev')">←</button>
+  <button class="mps-btn" onclick="navigateSlide('next')">→</button>
   <div style="width:15px"></div>
   
   <button class="mps-btn mps-tool btn-blk" onclick="setMpsTool('black')">✏️</button>
@@ -119,7 +120,7 @@ module.exports = `
   let globalCanvas = null;
   let globalCtx = null;
 
-  // --- INIT: Ein einziger Canvas für alles ---
+  // --- INIT ---
   const initCanvas = () => {
     if (globalCanvas) return;
     
@@ -133,7 +134,8 @@ module.exports = `
     resizeCanvas();
     attachEvents();
     
-    setTimeout(checkTimer, 200);
+    // Initialer Check mit leichter Verzögerung für das Framework
+    setTimeout(checkTimer, 500);
   };
 
   // --- RESIZE ---
@@ -141,32 +143,49 @@ module.exports = `
     if (!globalCanvas) return;
     
     const dpr = window.devicePixelRatio || 1;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    // Visual Viewport nutzen falls verfügbar (wichtig für iOS Safari mit Adressleiste)
+    const w = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+    const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     
     globalCanvas.width = Math.round(w * dpr);
     globalCanvas.height = Math.round(h * dpr);
     globalCanvas.style.width = w + 'px';
     globalCanvas.style.height = h + 'px';
+    globalCanvas.style.position = 'fixed';
+    globalCanvas.style.top = '0';
+    globalCanvas.style.left = '0';
   };
   
-  window.addEventListener('resize', resizeCanvas);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', resizeCanvas);
+  } else {
+    window.addEventListener('resize', resizeCanvas);
+  }
 
-  // --- KOORDINATEN (einfach: direkt clientX/Y) ---
+  // --- KOORDINATEN ---
   const getPos = (e) => {
     const dpr = window.devicePixelRatio || 1;
+    // Touch Events können clientX direkt im Event oder im touches Array haben
+    let cx = e.clientX;
+    let cy = e.clientY;
+    
+    if (cx === undefined && e.touches && e.touches.length > 0) {
+        cx = e.touches[0].clientX;
+        cy = e.touches[0].clientY;
+    }
+    
     return { 
-      x: e.clientX * dpr, 
-      y: e.clientY * dpr 
+      x: cx * dpr, 
+      y: cy * dpr 
     };
   };
 
   const attachEvents = () => {
-    // START
     const start = (e) => {
       if (currentTool === 'none') return;
       
-      e.preventDefault();
+      // Verhindert Scrollen/Zoomen auf iOS
+      if (e.cancelable) e.preventDefault();
       e.stopPropagation();
 
       if (isDrawing || activePointerId !== null) return;
@@ -178,6 +197,7 @@ module.exports = `
       globalCtx.beginPath(); 
       globalCtx.moveTo(p.x, p.y);
       
+      // Pointer Capture für stabiles Zeichnen auch wenn man den Finger bewegt
       setTimeout(() => {
         try { 
           if (globalCanvas.hasPointerCapture && !globalCanvas.hasPointerCapture(e.pointerId)) {
@@ -187,12 +207,11 @@ module.exports = `
       }, 0);
     };
     
-    // MOVE
     const move = (e) => {
       if (currentTool === 'none' || !isDrawing) return;
       if (activePointerId !== e.pointerId) return;
 
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault();
       e.stopPropagation();
       
       const p = getPos(e);
@@ -210,11 +229,10 @@ module.exports = `
       globalCtx.stroke();
     };
     
-    // END
     const end = (e) => { 
       if (activePointerId !== e.pointerId) return;
       
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault();
       e.stopPropagation();
       
       isDrawing = false;
@@ -227,40 +245,16 @@ module.exports = `
       } catch(err){}
     };
     
-    // Pointer Events
+    // Pointer Events (Modern)
     globalCanvas.addEventListener('pointerdown', start, { passive: false }); 
     globalCanvas.addEventListener('pointermove', move, { passive: false });
     globalCanvas.addEventListener('pointerup', end, { passive: false }); 
     globalCanvas.addEventListener('pointercancel', end, { passive: false });
     
-    // Touch Events Fallback
+    // Fallback: iOS Safari interpretiert Touch manchmal nicht als Pointer wenn touch-action involviert ist
     globalCanvas.addEventListener('touchstart', (e) => {
-      if (currentTool !== 'none') {
-        e.preventDefault();
-        e.stopPropagation();
-      }
+       if (currentTool !== 'none') e.preventDefault();
     }, { passive: false });
-    
-    globalCanvas.addEventListener('touchmove', (e) => {
-      if (currentTool !== 'none') {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }, { passive: false });
-    
-    globalCanvas.addEventListener('touchend', (e) => {
-      if (currentTool !== 'none') {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }, { passive: false });
-    
-    globalCanvas.addEventListener('click', (e) => {
-      if(currentTool !== 'none') {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }, { capture: true, passive: false });
   };
 
   // --- TOOLBAR ---
@@ -301,6 +295,14 @@ module.exports = `
     document.getElementById('menu-era-size').style.display = 'none'; 
   };
 
+  // Navigations-Helfer
+  window.navigateSlide = (dir) => {
+      const key = dir === 'next' ? 'ArrowRight' : 'ArrowLeft';
+      document.dispatchEvent(new KeyboardEvent('keydown',{'key': key}));
+      // Erzwingt CheckTimer nach Navigation für Touch-Geräte
+      setTimeout(checkTimer, 100);
+  }
+
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#mps-footer')) {
       document.querySelectorAll('.mps-popover').forEach(p => p.style.display = 'none');
@@ -328,12 +330,14 @@ module.exports = `
     const m = Math.floor(remainingSeconds / 60);
     const s = remainingSeconds % 60;
     const display = document.getElementById('mps-timer-display');
-    display.textContent = m.toString().padStart(2,'0') + ':' + s.toString().padStart(2,'0');
-    document.getElementById('btn-timer-toggle').textContent = isTimerRunning ? '⏸' : '▶';
-    if (remainingSeconds <= 0 && !isTimerRunning && defaultSeconds > 0) {
-      display.classList.add('mps-timer-finished');
-    } else {
-      display.classList.remove('mps-timer-finished');
+    if(display) {
+        display.textContent = m.toString().padStart(2,'0') + ':' + s.toString().padStart(2,'0');
+        document.getElementById('btn-timer-toggle').textContent = isTimerRunning ? '⏸' : '▶';
+        if (remainingSeconds <= 0 && !isTimerRunning && defaultSeconds > 0) {
+          display.classList.add('mps-timer-finished');
+        } else {
+          display.classList.remove('mps-timer-finished');
+        }
     }
   };
 
@@ -353,7 +357,8 @@ module.exports = `
         updateTimerDisplay();
       } else {
         stopTimer();
-        document.getElementById('mps-timer-display').classList.add('mps-timer-finished');
+        const display = document.getElementById('mps-timer-display');
+        if(display) display.classList.add('mps-timer-finished');
       }
     }, 1000);
   };
@@ -365,7 +370,8 @@ module.exports = `
   window.timerReset = () => { 
     stopTimer(); 
     remainingSeconds = defaultSeconds; 
-    document.getElementById('mps-timer-display').classList.remove('mps-timer-finished'); 
+    const display = document.getElementById('mps-timer-display');
+    if(display) display.classList.remove('mps-timer-finished'); 
     updateTimerDisplay(); 
   };
   
@@ -373,18 +379,29 @@ module.exports = `
     remainingSeconds += (mins * 60); 
     updateTimerDisplay(); 
     if(isTimerRunning) {
-      document.getElementById('mps-timer-display').classList.remove('mps-timer-finished'); 
+       const display = document.getElementById('mps-timer-display');
+       if(display) display.classList.remove('mps-timer-finished'); 
     }
   };
 
+  // === CRITICAL FIX: Timer Check ===
   const checkTimer = () => {
+    // 1. Canvas kurz verstecken, damit elementFromPoint hindurchsehen kann!
+    if (globalCanvas) globalCanvas.style.display = 'none';
+
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
     const hitElement = document.elementFromPoint(centerX, centerY);
+    
+    // 2. Canvas sofort wieder anzeigen (inline style entfernen, CSS greift wieder)
+    if (globalCanvas) globalCanvas.style.display = '';
+
     const sec = hitElement ? hitElement.closest('section') : document.querySelector('section');
     const widget = document.getElementById('mps-timer-widget');
     
-    stopTimer();
+    if(!widget) return;
+
+    // Timer Logik (nur resetten, wenn neue Slide mit Timer gefunden wird)
     if (sec) {
       const timerEl = sec.querySelector('[data-timer]');
       if (timerEl) {
@@ -396,20 +413,37 @@ module.exports = `
         } else {
           seconds = parseInt(val) * 60;
         }
-        defaultSeconds = seconds;
-        remainingSeconds = seconds;
-        widget.style.display = 'flex';
-        startTimer(); 
+        
+        // Nur Timer neu setzen, wenn es eine NEUE Zeit ist oder der Timer noch nicht lief
+        if (seconds !== defaultSeconds) {
+            stopTimer();
+            defaultSeconds = seconds;
+            remainingSeconds = seconds;
+            widget.style.display = 'flex';
+            startTimer();
+        } else {
+             // Timer existiert hier, Widget sicherstellen
+             widget.style.display = 'flex';
+        }
       } else {
+        // Kein Timer auf dieser Slide -> Widget ausblenden (aber Timer im Hintergrund nicht unbedingt stoppen?)
+        // Verhalten: Wenn keine Timer-Angabe, Widget weg.
         widget.style.display = 'none';
+        stopTimer();
       }
     }
   };
 
-  window.addEventListener('hashchange', () => setTimeout(checkTimer, 50));
+  // Event Listener für Slide-Wechsel
+  window.addEventListener('hashchange', () => setTimeout(checkTimer, 100));
+  window.addEventListener('popstate', () => setTimeout(checkTimer, 100)); // Wichtig für Browser Back/Forward
+  
+  // Touch-Events auf dem Screen können auch Slide-Wechsel auslösen
+  window.addEventListener('touchend', () => setTimeout(checkTimer, 300));
+
   window.addEventListener('keyup', (e) => { 
-    if(e.key.startsWith('Arrow') || e.key === 'PageUp' || e.key === 'PageDown') {
-      setTimeout(checkTimer, 50); 
+    if(e.key.startsWith('Arrow') || e.key === 'PageUp' || e.key === 'PageDown' || e.key === ' ') {
+      setTimeout(checkTimer, 100); 
     }
   });
   

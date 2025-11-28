@@ -562,7 +562,7 @@ Ganze Zahlen!?
 <div class="callout success">
 
 # Übungsphase
-  In euren Hefter
+  In eurem Hefter
 </div>
 
 | Z | E | Komma | z | h | t | zt |
@@ -609,7 +609,7 @@ $0,468=$ ++$\frac{468}{1000}$++
 <div class="callout success">
 
 # Übungsphase
-  In euren Hefter
+  In eurem Hefter
 </div>
 
 * **Buch S. 92 Nr. 5-6**
