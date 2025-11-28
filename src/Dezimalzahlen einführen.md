@@ -196,7 +196,7 @@ Zahlen mit Komma heißen Dezimalzahl!
 
 </div>
 
-<span data-timer="1:30"></span>
+<span data-timer="1:00"></span>
 
 ---
 
