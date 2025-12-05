@@ -21,13 +21,13 @@ Vorwissen testen
 
 **Aufgabe:** Schreibe die Antworten auf dein Whiteboard.
 
-1.  Wie heißt der **Stellenwert** der unterstrichenen Ziffer?
+*  a) Wie heißt der **Stellenwert** der unterstrichenen Ziffer?
+
     $$3,4\underline{7}1$$
 
-<br>
+*  b) Wie heißt der **Stellenwert** der unterstrichenen Ziffer?
+    $$3,47\underline{1}$$
 
-2.  Welches **Zeichen** (< , > , =) passt dazwischen?
-    $$4 \quad ? \quad 7$$
 
 <span data-timer="0:45"></span>
 
@@ -39,13 +39,9 @@ Vorwissen testen
 Zeigt mir eure Whiteboards!
 </div>
 
-1.  Stellenwert:
-    $$3,4\underline{7}1 \rightarrow \text{++Hundertstel (h)++}$$
+*   a) $3,4\underline{7}1$ → ++Hundertstel (h)++
+*   b) $3,47\underline{1}$ → ++Tausendstel (t)++
 
-<br>
-
-2.  Vergleich:
-    $$4 < 7$$
 
 ---
 
@@ -59,7 +55,7 @@ Wenn wir Dezimalzahlen vergleichen, schauen wir uns die Ziffern immer in einer b
 
 <br>
 
-$$\huge \rightarrow$$
+++$$\huge \rightarrow$$++
 
 <br>
 
@@ -69,7 +65,7 @@ $$\huge \rightarrow$$
 
 <div class="callout info">
 
-# Silent Teacher
+# Stiller Lehrer
 Beobachte genau: Wann entscheide ich?
 </div>
 
@@ -84,8 +80,8 @@ $$3,\mathbf{2}9$$
 
 <br>
 
-Ich vergleiche die **Zehntel**.
-$5 > 2$, fertig.
+* Ich vergleiche die **Zehntel**.
+* $5 > 2$
 
 </div>
 
@@ -98,8 +94,8 @@ $$3,5\mathbf{2}$$
 
 <br>
 
-Ich vergleiche die **Hundertstel**.
-(Leere Stelle) $0 < 2$, fertig.
+* Ich vergleiche die **Hundertstel**.
+* $0 < 2$
 
 </div>
 
@@ -117,13 +113,13 @@ Finde die entscheidende Stelle!
 
 <br>
 
-* a) $$4,1 \quad \text{und} \quad 4,8$$
+* a) $4,1 \quad \text{und} \quad 4,8$
 
-* b) $$4,1 \quad \text{und} \quad 4,15$$
+* b) $4,1 \quad \text{und} \quad 4,15$
 
-* c) $$0,123 \quad \text{und} \quad 0,124$$
+* c) $0,123 \quad \text{und} \quad 0,124$
 
-<span data-timer="1:00"></span>
+<span data-timer="1:30"></span>
 
 ---
 
@@ -133,22 +129,22 @@ Finde die entscheidende Stelle!
 Zeigt mir eure Whiteboards!
 </div>
 
-* a) $$4,\mathbf{1} \quad \text{und} \quad 4,\mathbf{8} \quad \text{(Zehntel)}$$
+* a) $4,\mathbf{1} \quad \text{und} \quad 4,\mathbf{8} \quad \text{(Zehntel)}$
 
 <br>
 
-* b) $$4,1 \quad \text{und} \quad 4,1\mathbf{5} \quad \text{(Hundertstel)}$$
+* b) $4,1 \quad \text{und} \quad 4,1\mathbf{5} \quad \text{(Hundertstel)}$
   *(Vergleich mit der leeren Stelle)*
 
 <br>
 
-* c) $$0,12\mathbf{3} \quad \text{und} \quad 0,12\mathbf{4} \quad \text{(Tausendstel)}$$
+* c) $0,12\mathbf{3} \quad \text{und} \quad 0,12\mathbf{4} \quad \text{(Tausendstel)}$
 
 ---
 
 <div class="callout success">
 
-# Mini-Kette
+# Auf euren Whiteboards
 Unterschied finden & Entscheiden
 </div>
 
@@ -180,7 +176,7 @@ $$7,5\underline{6} \quad \mathbf{>} \quad 7,5\underline{3}$$
 
 <div class="callout info">
 
-# I Do (Ich mache es vor)
+# Beispiel
 Komplexe Zahlen vergleichen
 </div>
 
@@ -192,17 +188,17 @@ Ich schreibe sie untereinander (Komma unter Komma).
 | 5 | , | 4 | 2 | |
 | 5 | , | 4 | 1 | 8 |
 
-1. Einer: $5 = 5$ (gleich) $\rightarrow$ weiter nach rechts.
-2. Zehntel: $4 = 4$ (gleich) $\rightarrow$ weiter nach rechts.
-3. ++Hundertstel: **$2 > 1$** (Stopp!)++
+* Einer: $5 = 5$ (gleich) $\rightarrow$ weiter nach rechts.
+* Zehntel: $4 = 4$ (gleich) $\rightarrow$ weiter nach rechts.
+* Hundertstel: **$2 > 1$**
 
-Ergebnis: ++$5,42 > 5,418$++
+* Ergebnis: ++$5,42 > 5,418$++
 
 ---
 
 <div class="callout success">
 
-# We Do (Wir üben gemeinsam)
+# Wir üben gemeinsam
 Jetzt seid ihr dran!
 </div>
 
