@@ -55,7 +55,7 @@ Wenn wir Dezimalzahlen vergleichen, schauen wir uns die Ziffern immer in einer b
 
 <br>
 
-++$$\huge \rightarrow$$++
+++$\huge \rightarrow$++
 
 <br>
 
