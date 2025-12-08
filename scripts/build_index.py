@@ -1,7 +1,9 @@
 import os
 import yaml
+import shutil  # Neu: Zum Kopieren von Dateien
 from datetime import datetime
 from collections import defaultdict
+from zoneinfo import ZoneInfo  # Neu: Für die Zeitzone
 
 # --- KONFIGURATION ---
 # Wo liegen die Markdown Dateien?
@@ -10,6 +12,8 @@ SLIDES_DIR = 'src'
 OUTPUT_DIR = 'public'
 # Wie heißt die fertige Datei?
 OUTPUT_FILENAME = 'index.html'
+# Welche Dateiendungen sollen als Bilder kopiert werden?
+IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'}
 
 # --- HTML TEMPLATE (mit CSS für ein modernes Design) ---
 HTML_TEMPLATE = """
@@ -52,7 +56,7 @@ HTML_TEMPLATE = """
     </div>
     
     <footer style="text-align: center; margin-top: 50px; color: #aaa; font-size: 0.8em;">
-        Generiert am {gen_date}
+        Generiert am {gen_date} (Berlin)
     </footer>
 </body>
 </html>
@@ -89,14 +93,12 @@ def generate_html_structure(data):
             html_parts.append('<ul class="slide-list">')
             
             # Sortiere Slides nach Datum (neueste zuerst)
-            # Wir gehen davon aus, dass das Datum als String "YYYY-MM-DD" vorliegt -> string sortierung reicht
             slides = sorted(areas[area], key=lambda x: x.get('date', '0000-00-00'), reverse=True)
             
             for slide in slides:
                 title = slide.get('title', 'Unbenannte Präsentation')
                 date = slide.get('date', '')
                 # Der Link zeigt auf public/slides/dateiname.html
-                # Da die index.html im public root liegt, ist der Pfad 'slides/...'
                 link = f"slides/{slide['filename'].replace('.md', '.html')}"
                 
                 html_parts.append(f'''
@@ -121,7 +123,6 @@ def main():
         os.makedirs(OUTPUT_DIR)
 
     # Datenstruktur: nested dictionary
-    # data['Informatik']['Programmierung'] = [slide1, slide2]
     data = defaultdict(lambda: defaultdict(list))
 
     print(f"Scanne Ordner: {SLIDES_DIR}...")
@@ -131,10 +132,14 @@ def main():
         return
 
     # Dateien scannen
-    count = 0
+    slide_count = 0
+    image_count = 0
+    
     for filename in os.listdir(SLIDES_DIR):
+        filepath = os.path.join(SLIDES_DIR, filename)
+        
+        # 1. Fall: Markdown Dateien verarbeiten
         if filename.endswith(".md"):
-            filepath = os.path.join(SLIDES_DIR, filename)
             meta = parse_frontmatter(filepath)
             
             # Fallback, falls Felder fehlen
@@ -146,13 +151,31 @@ def main():
             
             # Zur Struktur hinzufügen
             data[subject][area].append(meta)
-            count += 1
+            slide_count += 1
+            
+        # 2. Fall: Bilder kopieren
+        else:
+            # Dateiendung prüfen (case-insensitive)
+            ext = os.path.splitext(filename)[1].lower()
+            if ext in IMAGE_EXTENSIONS:
+                target_path = os.path.join(OUTPUT_DIR, filename)
+                try:
+                    shutil.copy2(filepath, target_path)
+                    # print(f"Bild kopiert: {filename}") # Optional: Log-Ausgabe
+                    image_count += 1
+                except Exception as e:
+                    print(f"Fehler beim Kopieren von {filename}: {e}")
 
     # HTML generieren
     content_html = generate_html_structure(data)
+    
+    # Datum mit Zeitzone Berlin ermitteln
+    berlin_tz = ZoneInfo("Europe/Berlin")
+    current_time = datetime.now(berlin_tz).strftime("%d.%m.%Y %H:%M")
+    
     final_html = HTML_TEMPLATE.format(
         content = content_html,
-        gen_date = datetime.now().strftime("%d.%m.%Y %H:%M")
+        gen_date = current_time
     )
 
     # Schreiben
@@ -160,7 +183,9 @@ def main():
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(final_html)
 
-    print(f"Fertig! Index mit {count} Slides erstellt: {output_path}")
+    print(f"Fertig! Index mit {slide_count} Slides erstellt.")
+    print(f"{image_count} Bilder wurden in '{OUTPUT_DIR}' kopiert.")
+    print(f"Datei gespeichert: {output_path}")
 
 if __name__ == "__main__":
     main()
