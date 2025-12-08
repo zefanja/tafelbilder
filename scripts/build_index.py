@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 # --- KONFIGURATION ---
 SLIDES_DIR = 'src'
 OUTPUT_DIR = 'public'
-# WICHTIG: Dies ist der Ordner, in dem die HTML-Slides liegen (public/slides)
+# Ordner für die generierten HTML-Folien (innerhalb von public)
 SLIDES_OUTPUT_SUBDIR = 'slides' 
 OUTPUT_FILENAME = 'index.html'
 
@@ -61,6 +61,7 @@ HTML_TEMPLATE = """
 """
 
 def parse_frontmatter(filepath):
+    """Liest YAML Frontmatter aus einer MD-Datei."""
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
     if content.startswith('---'):
@@ -72,54 +73,58 @@ def parse_frontmatter(filepath):
             print(f"Fehler beim Parsen von {filepath}: {e}")
     return {}
 
-def get_date_object(slide_data):
-    raw_date = str(slide_data.get('date', ''))
-    try:
-        return datetime.strptime(raw_date, "%Y-%m-%d")
-    except ValueError:
-        pass
-    try:
-        return datetime.strptime(raw_date, "%d.%m.%Y")
-    except ValueError:
-        pass
-    return datetime.min
-
 def generate_html_structure(data):
+    """Baut den HTML String aus den gruppierten Daten."""
     html_parts = []
+    
+    # Sortiere Fächer alphabetisch
     for subject in sorted(data.keys()):
         html_parts.append(f'<div class="subject-section"><h2 class="subject-title">{subject}</h2>')
+        
         areas = data[subject]
+        # Sortiere Lernbereiche alphabetisch
         for area in sorted(areas.keys()):
             html_parts.append(f'<div class="area-section"><h3 class="area-title">{area}</h3>')
             html_parts.append('<ul class="slide-list">')
             
-            slides = sorted(areas[area], key=get_date_object, reverse=True)
+            # --- NEUE SORTIERUNG ---
+            # Wir nutzen den 'mtime' (modification time) Zeitstempel, den wir beim Einlesen gespeichert haben.
+            # reverse=True -> Höchste Zahl (neuestes Datum) zuerst.
+            slides = sorted(areas[area], key=lambda x: x.get('mtime', 0), reverse=True)
             
             for slide in slides:
                 title = slide.get('title', 'Unbenannte Präsentation')
-                date_str = str(slide.get('date', ''))
-                # Link zeigt auf slides/dateiname.html
+                
+                # Wir zeigen trotzdem das Datum aus dem Frontmatter an, falls vorhanden,
+                # sonst das Änderungsdatum der Datei.
+                display_date = slide.get('date')
+                if not display_date:
+                    # Fallback: Zeige das Datei-Datum an, wenn im YAML nichts steht
+                    display_date = datetime.fromtimestamp(slide['mtime']).strftime('%d.%m.%Y')
+                
                 link = f"{SLIDES_OUTPUT_SUBDIR}/{slide['filename'].replace('.md', '.html')}"
                 
                 html_parts.append(f'''
                     <li class="slide-item">
                         <a href="{link}" class="slide-link">{title}</a>
-                        <span class="slide-date">{date_str}</span>
+                        <span class="slide-date">{display_date}</span>
                     </li>
                 ''')
+            
             html_parts.append('</ul></div>')
+        
         html_parts.append('</div>')
     
     if not html_parts:
         return '<p class="empty-msg">Keine Präsentationen gefunden.</p>'
+        
     return "\n".join(html_parts)
 
 def main():
-    # 1. Sicherstellen, dass public/ Ordner existiert
+    # Ordnerstruktur erstellen
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
         
-    # 2. Sicherstellen, dass public/slides/ Ordner existiert (für die Bilder!)
     target_slides_dir = os.path.join(OUTPUT_DIR, SLIDES_OUTPUT_SUBDIR)
     if not os.path.exists(target_slides_dir):
         os.makedirs(target_slides_dir)
@@ -140,10 +145,17 @@ def main():
         
         # --- Markdown Dateien ---
         if filename.endswith(".md"):
+            # Metadaten lesen
             meta = parse_frontmatter(filepath)
+            
+            # WICHTIG: Datei-Änderungsdatum auslesen (Timestamp)
+            mtime = os.path.getmtime(filepath)
+            meta['mtime'] = mtime
+            
             subject = meta.get('subject', 'Allgemein')
             area = meta.get('area', 'Sonstiges')
             meta['filename'] = filename
+            
             data[subject][area].append(meta)
             slide_count += 1
             
@@ -151,7 +163,6 @@ def main():
         else:
             ext = os.path.splitext(filename)[1].lower()
             if ext in IMAGE_EXTENSIONS:
-                # Änderung: Ziel ist jetzt public/slides/bild.png
                 target_path = os.path.join(target_slides_dir, filename)
                 try:
                     shutil.copy2(filepath, target_path)
@@ -159,6 +170,7 @@ def main():
                 except Exception as e:
                     print(f"Fehler beim Kopieren von {filename}: {e}")
 
+    # HTML generieren
     content_html = generate_html_structure(data)
     
     berlin_tz = ZoneInfo("Europe/Berlin")
