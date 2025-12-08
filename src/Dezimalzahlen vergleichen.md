@@ -247,6 +247,14 @@ Zeigt mir eure Whiteboards!
 
 <div class="callout success">
 
+  # Dezimalzahlen darstellen
+  am Zahlenstrahl
+</div>
+
+---
+
+<div class="callout success">
+
   # Auf euren Whiteboards
   Lies die markierten Zahlen ab!
 </div>
