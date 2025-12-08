@@ -65,7 +65,7 @@ Wenn wir Dezimalzahlen vergleichen, schauen wir uns die Ziffern immer in einer b
 
 <div class="callout info">
 
-# Stiller Lehrer
+# Beispiel
 Beobachte genau: Wann entscheide ich?
 </div>
 
@@ -198,7 +198,7 @@ Ich schreibe sie untereinander (Komma unter Komma).
 
 <div class="callout success">
 
-# Wir üben gemeinsam
+# Auf euren Whiteboards
 Jetzt seid ihr dran!
 </div>
 
@@ -242,3 +242,109 @@ Zeigt mir eure Whiteboards!
 * **Achtung:** Eine Zahl mit mehr Nachkommastellen ist **nicht** automatisch größer! (Beispiel: $5,42 > 5,418$)
 
 * **Buch S. 97 / 1, 4, 5 (Zusatz 3)**
+
+---
+
+<div class="callout success">
+
+  # Auf euren Whiteboards
+  Lies die markierten Zahlen ab!
+</div>
+
+![w:2360 center](image.png)
+
+---
+
+<div class="callout todo">
+
+# Lösung
+Zeigt mir eure Whiteboards!
+</div>
+
+![w:2360 center](image.png)
+<div class="multicolumn">
+A = 0,5
+
+B = 1,7
+
+C = 2,4
+
+D = 4
+
+E = 4,7
+</div>
+
+---
+
+<div class="callout success">
+
+  # Auf euren Whiteboards
+  Lies die markierten Zahlen ab!
+</div>
+
+![w:2360 center](image-1.png)
+
+---
+
+<div class="callout todo">
+
+# Lösung
+Zeigt mir eure Whiteboards!
+</div>
+
+![w:2360 center](image-1.png)
+
+<div class="multicolumn">
+A = 0,1
+
+B = 0,2
+
+C = 0,25
+
+D = 0,38
+
+E = 0,43
+</div>
+
+---
+
+<div class="callout success">
+
+  # Auf euren Whiteboards
+  Lies die markierten Zahlen ab!
+</div>
+
+![w:2360 center](image-2.png)
+
+---
+
+<div class="callout todo">
+
+# Lösung
+Zeigt mir eure Whiteboards!
+</div>
+
+![w:2360 center](image-2.png)
+
+<div class="multicolumn">
+A = 15,76
+
+B = 15,81
+
+C = 15,85
+
+D = 15,93
+
+E = 16
+</div>
+
+---
+
+<div class="callout success">
+
+  # Übungsphase
+  In euren Heftern!
+</div>
+
+**Buch S. 98 Nr. 7**
+**Buch S. 99 Nr. 9a; 12; 13**
