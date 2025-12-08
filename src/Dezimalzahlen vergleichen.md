@@ -240,3 +240,5 @@ Zeigt mir eure Whiteboards!
 * Wir schreiben die Zahlen am besten **untereinander** (Komma unter Komma).
 * Die **erste Stelle**, an der sich die Ziffern unterscheiden, entscheidet, welche Zahl größer ist.
 * **Achtung:** Eine Zahl mit mehr Nachkommastellen ist **nicht** automatisch größer! (Beispiel: $5,42 > 5,418$)
+
+* **Buch S. 97 / 1, 4, 5 (Zusatz 3)**
