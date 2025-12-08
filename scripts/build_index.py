@@ -1,6 +1,7 @@
 import os
 import yaml
 import shutil
+import subprocess  # Neu: Für Git-Befehle
 from datetime import datetime
 from collections import defaultdict
 from zoneinfo import ZoneInfo
@@ -8,7 +9,6 @@ from zoneinfo import ZoneInfo
 # --- KONFIGURATION ---
 SLIDES_DIR = 'src'
 OUTPUT_DIR = 'public'
-# Ordner für die generierten HTML-Folien (innerhalb von public)
 SLIDES_OUTPUT_SUBDIR = 'slides' 
 OUTPUT_FILENAME = 'index.html'
 
@@ -60,8 +60,28 @@ HTML_TEMPLATE = """
 </html>
 """
 
+def get_git_mtime(filepath):
+    """
+    Versucht, das Datum des letzten Commits für eine Datei via Git zu ermitteln.
+    Gibt einen Unix-Timestamp (float) zurück oder None, wenn es fehlschlägt.
+    """
+    try:
+        # git log -1 --format=%ct gibt den Unix-Timestamp des letzten Commits
+        # %ct = commit time, unix timestamp
+        cmd = ['git', 'log', '-1', '--format=%ct', filepath]
+        # stderr unterdrücken, falls wir nicht in einem git repo sind
+        output = subprocess.check_output(cmd, stderr=subprocess.DEVNULL).decode().strip()
+        
+        if output and output.isdigit():
+            return float(output)
+            
+    except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
+        # Fallback, falls git nicht installiert ist oder kein Repo vorliegt
+        pass
+    
+    return None
+
 def parse_frontmatter(filepath):
-    """Liest YAML Frontmatter aus einer MD-Datei."""
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
     if content.startswith('---'):
@@ -74,34 +94,34 @@ def parse_frontmatter(filepath):
     return {}
 
 def generate_html_structure(data):
-    """Baut den HTML String aus den gruppierten Daten."""
     html_parts = []
     
-    # Sortiere Fächer alphabetisch
     for subject in sorted(data.keys()):
         html_parts.append(f'<div class="subject-section"><h2 class="subject-title">{subject}</h2>')
-        
         areas = data[subject]
-        # Sortiere Lernbereiche alphabetisch
         for area in sorted(areas.keys()):
             html_parts.append(f'<div class="area-section"><h3 class="area-title">{area}</h3>')
             html_parts.append('<ul class="slide-list">')
             
-            # --- NEUE SORTIERUNG ---
-            # Wir nutzen den 'mtime' (modification time) Zeitstempel, den wir beim Einlesen gespeichert haben.
-            # reverse=True -> Höchste Zahl (neuestes Datum) zuerst.
+            # --- SORTIERUNG ---
+            # Sortiere nach dem ermittelten Timestamp (mtime)
             slides = sorted(areas[area], key=lambda x: x.get('mtime', 0), reverse=True)
             
             for slide in slides:
                 title = slide.get('title', 'Unbenannte Präsentation')
                 
-                # Wir zeigen trotzdem das Datum aus dem Frontmatter an, falls vorhanden,
-                # sonst das Änderungsdatum der Datei.
+                # Datum für die Anzeige:
+                # 1. Bevorzuge explizites Datum im YAML
                 display_date = slide.get('date')
-                if not display_date:
-                    # Fallback: Zeige das Datei-Datum an, wenn im YAML nichts steht
+                
+                # 2. Wenn kein Datum im YAML, nutze das Git-Datum
+                if not display_date and slide.get('mtime'):
                     display_date = datetime.fromtimestamp(slide['mtime']).strftime('%d.%m.%Y')
                 
+                # 3. Wenn immer noch nichts, leer lassen
+                if not display_date:
+                    display_date = ""
+
                 link = f"{SLIDES_OUTPUT_SUBDIR}/{slide['filename'].replace('.md', '.html')}"
                 
                 html_parts.append(f'''
@@ -110,18 +130,14 @@ def generate_html_structure(data):
                         <span class="slide-date">{display_date}</span>
                     </li>
                 ''')
-            
             html_parts.append('</ul></div>')
-        
         html_parts.append('</div>')
     
     if not html_parts:
         return '<p class="empty-msg">Keine Präsentationen gefunden.</p>'
-        
     return "\n".join(html_parts)
 
 def main():
-    # Ordnerstruktur erstellen
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
         
@@ -145,11 +161,15 @@ def main():
         
         # --- Markdown Dateien ---
         if filename.endswith(".md"):
-            # Metadaten lesen
             meta = parse_frontmatter(filepath)
             
-            # WICHTIG: Datei-Änderungsdatum auslesen (Timestamp)
-            mtime = os.path.getmtime(filepath)
+            # 1. Versuch: Git Timestamp
+            mtime = get_git_mtime(filepath)
+            
+            # 2. Versuch: Dateisystem (Fallback für lokales Testen ohne Git)
+            if mtime is None:
+                mtime = os.path.getmtime(filepath)
+                
             meta['mtime'] = mtime
             
             subject = meta.get('subject', 'Allgemein')
@@ -170,7 +190,6 @@ def main():
                 except Exception as e:
                     print(f"Fehler beim Kopieren von {filename}: {e}")
 
-    # HTML generieren
     content_html = generate_html_structure(data)
     
     berlin_tz = ZoneInfo("Europe/Berlin")
