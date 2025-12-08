@@ -327,6 +327,7 @@ Zeigt mir eure Whiteboards!
 ![w:2360 center](image-2.png)
 
 <div class="multicolumn">
+
 A = 15,76
 
 B = 15,81
@@ -336,6 +337,7 @@ C = 15,85
 D = 15,93
 
 E = 16
+
 </div>
 
 ---
