@@ -1,21 +1,20 @@
 import os
 import yaml
-import shutil  # Neu: Zum Kopieren von Dateien
+import shutil
 from datetime import datetime
 from collections import defaultdict
-from zoneinfo import ZoneInfo  # Neu: Für die Zeitzone
+from zoneinfo import ZoneInfo
 
 # --- KONFIGURATION ---
-# Wo liegen die Markdown Dateien?
 SLIDES_DIR = 'src'
-# Wo soll die fertige HTML Seite gespeichert werden?
 OUTPUT_DIR = 'public'
-# Wie heißt die fertige Datei?
+# WICHTIG: Dies ist der Ordner, in dem die HTML-Slides liegen (public/slides)
+SLIDES_OUTPUT_SUBDIR = 'slides' 
 OUTPUT_FILENAME = 'index.html'
-# Welche Dateiendungen sollen als Bilder kopiert werden?
+
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'}
 
-# --- HTML TEMPLATE (mit CSS für ein modernes Design) ---
+# --- HTML TEMPLATE ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="de">
@@ -24,7 +23,6 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meine Tafelbilder</title>
     <style>
-        /* ALLE geschweiften Klammern MÜSSEN VERDOPPELT WERDEN */
         body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f4f4f9; }}
         header {{ text-align: center; margin-bottom: 40px; }}
         h1 {{ color: #2c3e50; }}
@@ -63,66 +61,69 @@ HTML_TEMPLATE = """
 """
 
 def parse_frontmatter(filepath):
-    """Liest YAML Frontmatter aus einer MD-Datei."""
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
-        
-    # Einfache Trennung von Frontmatter und Inhalt
     if content.startswith('---'):
         try:
             parts = content.split('---', 2)
             if len(parts) >= 3:
-                metadata = yaml.safe_load(parts[1])
-                return metadata
+                return yaml.safe_load(parts[1])
         except yaml.YAMLError as e:
             print(f"Fehler beim Parsen von {filepath}: {e}")
     return {}
 
+def get_date_object(slide_data):
+    raw_date = str(slide_data.get('date', ''))
+    try:
+        return datetime.strptime(raw_date, "%Y-%m-%d")
+    except ValueError:
+        pass
+    try:
+        return datetime.strptime(raw_date, "%d.%m.%Y")
+    except ValueError:
+        pass
+    return datetime.min
+
 def generate_html_structure(data):
-    """Baut den HTML String aus den gruppierten Daten."""
     html_parts = []
-    
-    # Sortiere Fächer alphabetisch
     for subject in sorted(data.keys()):
         html_parts.append(f'<div class="subject-section"><h2 class="subject-title">{subject}</h2>')
-        
         areas = data[subject]
-        # Sortiere Lernbereiche alphabetisch
         for area in sorted(areas.keys()):
             html_parts.append(f'<div class="area-section"><h3 class="area-title">{area}</h3>')
             html_parts.append('<ul class="slide-list">')
             
-            # Sortiere Slides nach Datum (neueste zuerst)
-            slides = sorted(areas[area], key=lambda x: x.get('date', '0000-00-00'), reverse=True)
+            slides = sorted(areas[area], key=get_date_object, reverse=True)
             
             for slide in slides:
                 title = slide.get('title', 'Unbenannte Präsentation')
-                date = slide.get('date', '')
-                # Der Link zeigt auf public/slides/dateiname.html
-                link = f"slides/{slide['filename'].replace('.md', '.html')}"
+                date_str = str(slide.get('date', ''))
+                # Link zeigt auf slides/dateiname.html
+                link = f"{SLIDES_OUTPUT_SUBDIR}/{slide['filename'].replace('.md', '.html')}"
                 
                 html_parts.append(f'''
                     <li class="slide-item">
                         <a href="{link}" class="slide-link">{title}</a>
-                        <span class="slide-date">{date}</span>
+                        <span class="slide-date">{date_str}</span>
                     </li>
                 ''')
-            
             html_parts.append('</ul></div>')
-        
         html_parts.append('</div>')
     
     if not html_parts:
         return '<p class="empty-msg">Keine Präsentationen gefunden.</p>'
-        
     return "\n".join(html_parts)
 
 def main():
-    # Prüfen ob Output Ordner existiert
+    # 1. Sicherstellen, dass public/ Ordner existiert
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
+        
+    # 2. Sicherstellen, dass public/slides/ Ordner existiert (für die Bilder!)
+    target_slides_dir = os.path.join(OUTPUT_DIR, SLIDES_OUTPUT_SUBDIR)
+    if not os.path.exists(target_slides_dir):
+        os.makedirs(target_slides_dir)
 
-    # Datenstruktur: nested dictionary
     data = defaultdict(lambda: defaultdict(list))
 
     print(f"Scanne Ordner: {SLIDES_DIR}...")
@@ -131,45 +132,35 @@ def main():
         print(f"Fehler: Ordner '{SLIDES_DIR}' nicht gefunden!")
         return
 
-    # Dateien scannen
     slide_count = 0
     image_count = 0
     
     for filename in os.listdir(SLIDES_DIR):
         filepath = os.path.join(SLIDES_DIR, filename)
         
-        # 1. Fall: Markdown Dateien verarbeiten
+        # --- Markdown Dateien ---
         if filename.endswith(".md"):
             meta = parse_frontmatter(filepath)
-            
-            # Fallback, falls Felder fehlen
             subject = meta.get('subject', 'Allgemein')
             area = meta.get('area', 'Sonstiges')
-            
-            # Filename hinzufügen für den Link
             meta['filename'] = filename
-            
-            # Zur Struktur hinzufügen
             data[subject][area].append(meta)
             slide_count += 1
             
-        # 2. Fall: Bilder kopieren
+        # --- Bilder Kopieren ---
         else:
-            # Dateiendung prüfen (case-insensitive)
             ext = os.path.splitext(filename)[1].lower()
             if ext in IMAGE_EXTENSIONS:
-                target_path = os.path.join(OUTPUT_DIR, filename)
+                # Änderung: Ziel ist jetzt public/slides/bild.png
+                target_path = os.path.join(target_slides_dir, filename)
                 try:
                     shutil.copy2(filepath, target_path)
-                    # print(f"Bild kopiert: {filename}") # Optional: Log-Ausgabe
                     image_count += 1
                 except Exception as e:
                     print(f"Fehler beim Kopieren von {filename}: {e}")
 
-    # HTML generieren
     content_html = generate_html_structure(data)
     
-    # Datum mit Zeitzone Berlin ermitteln
     berlin_tz = ZoneInfo("Europe/Berlin")
     current_time = datetime.now(berlin_tz).strftime("%d.%m.%Y %H:%M")
     
@@ -178,14 +169,12 @@ def main():
         gen_date = current_time
     )
 
-    # Schreiben
     output_path = os.path.join(OUTPUT_DIR, OUTPUT_FILENAME)
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(final_html)
 
     print(f"Fertig! Index mit {slide_count} Slides erstellt.")
-    print(f"{image_count} Bilder wurden in '{OUTPUT_DIR}' kopiert.")
-    print(f"Datei gespeichert: {output_path}")
+    print(f"{image_count} Bilder wurden nach '{target_slides_dir}' kopiert.")
 
 if __name__ == "__main__":
     main()
