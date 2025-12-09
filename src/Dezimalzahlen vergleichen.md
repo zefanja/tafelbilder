@@ -13,23 +13,26 @@ area: Brüche&Dezimalzahlen
 
 ---
 
-<div class="callout info">
+<div class="callout success">
 
-# Start
-Vorwissen testen
+# Auf euren Whiteboards
+Wie heißt der **Stellenwert** der unterstrichenen Ziffer?
 </div>
 
-**Aufgabe:** Schreibe die Antworten auf dein Whiteboard.
-
-*  a) Wie heißt der **Stellenwert** der unterstrichenen Ziffer?
-
-    $$3,4\underline{7}1$$
-
-*  b) Wie heißt der **Stellenwert** der unterstrichenen Ziffer?
-    $$3,47\underline{1}$$
+Schreibe: z, h, t oder zt!
 
 
-<span data-timer="0:45"></span>
+*  a) $3,4\underline{7}1$
+
+*  b) $3,47\underline{1}$
+
+*  c) $75,\underline{1}23$
+
+*  d) $2,789\underline{6}$
+
+
+
+<span data-timer="1:00"></span>
 
 ---
 
@@ -41,6 +44,8 @@ Zeigt mir eure Whiteboards!
 
 *   a) $3,4\underline{7}1$ → ++Hundertstel (h)++
 *   b) $3,47\underline{1}$ → ++Tausendstel (t)++
+*  c) $75,\underline{1}23$ → ++Zehntel (z)++
+*  d) $2,789\underline{6}$ → ++Zehntausendstel (zt)++
 
 
 ---
@@ -82,6 +87,7 @@ $$3,\mathbf{2}9$$
 
 * Ich vergleiche die **Zehntel**.
 * $5 > 2$
+* also: $3,52 > 3,29$
 
 </div>
 
@@ -89,13 +95,14 @@ $$3,\mathbf{2}9$$
 
 **Beispiel 2:**
 
-$$3,5$$
+$$3,5\phantom{0}$$
 $$3,5\mathbf{2}$$
 
 <br>
 
 * Ich vergleiche die **Hundertstel**.
 * $0 < 2$
+* also: $3,5 < 3,52$
 
 </div>
 
@@ -106,12 +113,9 @@ $$3,5\mathbf{2}$$
 <div class="callout success">
 
 # Auf euren Whiteboards
-Finde die entscheidende Stelle!
+An welcher Stelle (z,h,t) unterscheiden dich sich die Zahlen **zuerst**?
 </div>
 
-**Aufgabe:** Kreise die Stelle ein, an der sich die Zahlen **zuerst** unterscheiden. (Du musst noch kein < oder > setzen!)
-
-<br>
 
 * a) $4,1 \quad \text{und} \quad 4,8$
 
@@ -119,7 +123,7 @@ Finde die entscheidende Stelle!
 
 * c) $0,123 \quad \text{und} \quad 0,124$
 
-<span data-timer="1:30"></span>
+<span data-timer="1:00"></span>
 
 ---
 
@@ -145,14 +149,8 @@ Zeigt mir eure Whiteboards!
 <div class="callout success">
 
 # Auf euren Whiteboards
-Unterschied finden & Entscheiden
+Welche Zahl ist größer? Setze das richtige Zeichen: < oder >
 </div>
-
-**Aufgabe:**
-1. Unterstreiche die entscheidende Stelle.
-2. Setze das richtige Zeichen ($<, >$).
-
-<br>
 
 $$7,56 \quad ? \quad 7,53$$
 
@@ -170,7 +168,7 @@ $$7,5\underline{6} \quad \mathbf{>} \quad 7,5\underline{3}$$
 
 <br>
 
-*Weil 6 Hundertstel größer sind als 3 Hundertstel.*
+* *Weil 6 Hundertstel größer sind als 3 Hundertstel.*
 
 ---
 
@@ -199,8 +197,7 @@ Ich schreibe sie untereinander (Komma unter Komma).
 <div class="callout success">
 
 # Auf euren Whiteboards
-Jetzt seid ihr dran!
-</div>
+Vergleiche!</div>
 
 Vergleiche auf deinem Whiteboard: **3,06** und **3,064**
 
@@ -225,9 +222,9 @@ Zeigt mir eure Whiteboards!
 
 <br>
 
-1. Einer, Zehntel und Hundertstel sind gleich.
-2. Tausendstel: "Nichts" ($0$) ist kleiner als $4$.
-3. ++$3,06 < 3,064$++
+*  Einer, Zehntel und Hundertstel sind gleich.
+*  Tausendstel: "Nichts" ($0$) ist kleiner als $4$.
+*  ++$3,06 < 3,064$++
 
 ---
 

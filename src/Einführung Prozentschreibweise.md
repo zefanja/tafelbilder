@@ -13,15 +13,12 @@ area: Brüche&Dezimalzahlen
 
 ---
 
-<div class="callout info">
+<div class="callout success">
 
-# Start
-Vorwissen testen: Stellenwerte
-</div>
+# Auf euren Whiteboards
 
-**Aufgabe:** Schreibe diese Dezimalzahlen als Brüche auf dein Whiteboard.
+Schreibe diese Dezimalzahlen als Brüche auf dein Whiteboard</div>
 
-<br>
 
 * a) $0,17$
 
