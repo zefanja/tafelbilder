@@ -172,7 +172,7 @@ Jetzt seid ihr dran :)
 
 </div>
 
-**Buch S. 152 Nr. 3**
+* **Buch S. 152 Nr. 3**
 
 <span data-timer="10:00"></span>
 
@@ -194,6 +194,6 @@ Jetzt seid ihr dran :)
 
 </div>
 
-**Buch S. 152 Nr. 4**
+* **Buch S. 152 Nr. 4**
 
 <span data-timer="10:00"></span>
