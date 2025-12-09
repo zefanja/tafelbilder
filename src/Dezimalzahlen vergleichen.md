@@ -256,7 +256,7 @@ Zeigt mir eure Whiteboards!
   Lies die markierten Zahlen ab!
 </div>
 
-![w:2360 center](image.png)
+![w:2360 center](assets/image.png)
 
 ---
 
@@ -266,7 +266,7 @@ Zeigt mir eure Whiteboards!
 Zeigt mir eure Whiteboards!
 </div>
 
-![w:2360 center](image.png)
+![w:2360 center](assets/image.png)
 <div class="multicolumn">
 A = 0,5
 
@@ -287,7 +287,7 @@ E = 4,7
   Lies die markierten Zahlen ab!
 </div>
 
-![w:2360 center](image-1.png)
+![w:2360 center](assets/image-1.png)
 
 ---
 
@@ -297,7 +297,7 @@ E = 4,7
 Zeigt mir eure Whiteboards!
 </div>
 
-![w:2360 center](image-1.png)
+![w:2360 center](assets/image-1.png)
 
 <div class="multicolumn">
 A = 0,1
@@ -319,7 +319,7 @@ E = 0,43
   Lies die markierten Zahlen ab!
 </div>
 
-![w:2360 center](image-2.png)
+![w:2360 center](assets/image-2.png)
 
 ---
 
@@ -329,7 +329,7 @@ E = 0,43
 Zeigt mir eure Whiteboards!
 </div>
 
-![w:2360 center](image-2.png)
+![w:2360 center](assets/image-2.png)
 
 <div class="multicolumn">
 

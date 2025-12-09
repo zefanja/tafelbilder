@@ -1,18 +1,18 @@
 import os
 import yaml
 import shutil
-import subprocess  # Neu: Für Git-Befehle
+import subprocess
 from datetime import datetime
 from collections import defaultdict
 from zoneinfo import ZoneInfo
 
 # --- KONFIGURATION ---
-SLIDES_DIR = 'src'
-OUTPUT_DIR = 'public'
-SLIDES_OUTPUT_SUBDIR = 'slides' 
-OUTPUT_FILENAME = 'index.html'
+SOURCE_DIR = 'src'
+ASSETS_SUBDIR = 'assets'      # Der Ordnername in src (src/assets)
 
-IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'}
+OUTPUT_DIR = 'public'
+SLIDES_OUTPUT_SUBDIR = 'slides' # Der Ordner für HTML-Dateien (public/slides)
+OUTPUT_FILENAME = 'index.html'
 
 # --- HTML TEMPLATE ---
 HTML_TEMPLATE = """
@@ -61,27 +61,18 @@ HTML_TEMPLATE = """
 """
 
 def get_git_mtime(filepath):
-    """
-    Versucht, das Datum des letzten Commits für eine Datei via Git zu ermitteln.
-    Gibt einen Unix-Timestamp (float) zurück oder None, wenn es fehlschlägt.
-    """
+    """Holt den Timestamp des letzten Commits via Git."""
     try:
-        # git log -1 --format=%ct gibt den Unix-Timestamp des letzten Commits
-        # %ct = commit time, unix timestamp
         cmd = ['git', 'log', '-1', '--format=%ct', filepath]
-        # stderr unterdrücken, falls wir nicht in einem git repo sind
         output = subprocess.check_output(cmd, stderr=subprocess.DEVNULL).decode().strip()
-        
         if output and output.isdigit():
             return float(output)
-            
-    except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
-        # Fallback, falls git nicht installiert ist oder kein Repo vorliegt
+    except Exception:
         pass
-    
     return None
 
 def parse_frontmatter(filepath):
+    """Liest YAML Frontmatter."""
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
     if content.startswith('---'):
@@ -103,22 +94,16 @@ def generate_html_structure(data):
             html_parts.append(f'<div class="area-section"><h3 class="area-title">{area}</h3>')
             html_parts.append('<ul class="slide-list">')
             
-            # --- SORTIERUNG ---
-            # Sortiere nach dem ermittelten Timestamp (mtime)
+            # Sortierung nach Git-Zeitstempel (neueste zuerst)
             slides = sorted(areas[area], key=lambda x: x.get('mtime', 0), reverse=True)
             
             for slide in slides:
                 title = slide.get('title', 'Unbenannte Präsentation')
                 
-                # Datum für die Anzeige:
-                # 1. Bevorzuge explizites Datum im YAML
+                # Datum Logik: YAML -> Git -> Leer
                 display_date = slide.get('date')
-                
-                # 2. Wenn kein Datum im YAML, nutze das Git-Datum
                 if not display_date and slide.get('mtime'):
                     display_date = datetime.fromtimestamp(slide['mtime']).strftime('%d.%m.%Y')
-                
-                # 3. Wenn immer noch nichts, leer lassen
                 if not display_date:
                     display_date = ""
 
@@ -137,7 +122,32 @@ def generate_html_structure(data):
         return '<p class="empty-msg">Keine Präsentationen gefunden.</p>'
     return "\n".join(html_parts)
 
+def copy_assets():
+    """Kopiert den gesamten assets Ordner von src nach public/slides."""
+    source_assets = os.path.join(SOURCE_DIR, ASSETS_SUBDIR)
+    
+    # Ziel ist public/slides/assets, damit Markdown Referenzen wie "assets/bild.png" funktionieren
+    target_assets = os.path.join(OUTPUT_DIR, SLIDES_OUTPUT_SUBDIR, ASSETS_SUBDIR)
+
+    if os.path.exists(source_assets):
+        # Wenn Zielordner existiert, löschen (sauberer State) oder Mergen. 
+        # dirs_exist_ok=True bei copytree erlaubt das Überschreiben/Ergänzen
+        try:
+            # Ordnerstruktur sicherstellen
+            if not os.path.exists(os.path.dirname(target_assets)):
+                os.makedirs(os.path.dirname(target_assets))
+                
+            shutil.copytree(source_assets, target_assets, dirs_exist_ok=True)
+            print(f"Assets kopiert: '{source_assets}' -> '{target_assets}'")
+            return True
+        except Exception as e:
+            print(f"Fehler beim Kopieren der Assets: {e}")
+    else:
+        print(f"Hinweis: Kein Assets-Ordner unter '{source_assets}' gefunden.")
+    return False
+
 def main():
+    # 1. Output Ordner vorbereiten
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
         
@@ -145,30 +155,30 @@ def main():
     if not os.path.exists(target_slides_dir):
         os.makedirs(target_slides_dir)
 
-    data = defaultdict(lambda: defaultdict(list))
+    # 2. Assets kopieren (Bilder, etc.)
+    copy_assets()
 
-    print(f"Scanne Ordner: {SLIDES_DIR}...")
+    # 3. Slides verarbeiten
+    data = defaultdict(lambda: defaultdict(list))
+    print(f"Scanne Ordner: {SOURCE_DIR}...")
     
-    if not os.path.exists(SLIDES_DIR):
-        print(f"Fehler: Ordner '{SLIDES_DIR}' nicht gefunden!")
+    if not os.path.exists(SOURCE_DIR):
+        print(f"Fehler: Ordner '{SOURCE_DIR}' nicht gefunden!")
         return
 
     slide_count = 0
-    image_count = 0
     
-    for filename in os.listdir(SLIDES_DIR):
-        filepath = os.path.join(SLIDES_DIR, filename)
+    for filename in os.listdir(SOURCE_DIR):
+        filepath = os.path.join(SOURCE_DIR, filename)
         
-        # --- Markdown Dateien ---
+        # Nur Markdown Dateien direkt im src root verarbeiten
         if filename.endswith(".md"):
             meta = parse_frontmatter(filepath)
             
-            # 1. Versuch: Git Timestamp
+            # Git Timestamp holen
             mtime = get_git_mtime(filepath)
-            
-            # 2. Versuch: Dateisystem (Fallback für lokales Testen ohne Git)
             if mtime is None:
-                mtime = os.path.getmtime(filepath)
+                mtime = os.path.getmtime(filepath) # Fallback lokal
                 
             meta['mtime'] = mtime
             
@@ -178,18 +188,8 @@ def main():
             
             data[subject][area].append(meta)
             slide_count += 1
-            
-        # --- Bilder Kopieren ---
-        else:
-            ext = os.path.splitext(filename)[1].lower()
-            if ext in IMAGE_EXTENSIONS:
-                target_path = os.path.join(target_slides_dir, filename)
-                try:
-                    shutil.copy2(filepath, target_path)
-                    image_count += 1
-                except Exception as e:
-                    print(f"Fehler beim Kopieren von {filename}: {e}")
 
+    # 4. HTML generieren
     content_html = generate_html_structure(data)
     
     berlin_tz = ZoneInfo("Europe/Berlin")
@@ -205,7 +205,6 @@ def main():
         f.write(final_html)
 
     print(f"Fertig! Index mit {slide_count} Slides erstellt.")
-    print(f"{image_count} Bilder wurden nach '{target_slides_dir}' kopiert.")
 
 if __name__ == "__main__":
     main()
