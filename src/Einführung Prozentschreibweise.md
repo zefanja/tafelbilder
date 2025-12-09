@@ -96,25 +96,27 @@ Entscheidung treffen
 
 Schreibe **Ja** oder **Nein**: Ist der Bruch bereit für die Prozentschreibweise?
 
+<br>
+
 <div class="multicolumn">
 
 <div>
 
-* a) $\frac{19}{100}$
+a) $\frac{19}{100}$
 
 <br>
 
-* b) $\frac{19}{20}$
+b) $\frac{19}{20}$
 
 </div>
 
 <div>
 
-* c) $\frac{3}{100}$
+c) $\frac{3}{100}$
 
 <br>
 
-* d) $\frac{100}{10}$
+d) $\frac{100}{10}$
 
 </div>
 
@@ -282,26 +284,26 @@ $$0,07 = \frac{7}{100} = 7\%$$
 
 <div class="callout info">
 
-# Beispiel (I Do)
+# Beispiel
 Ich mache es vor (Stifte weglegen!)
 </div>
 
 Ich wandle **0,23** in Prozent um.
 
-1. Ich prüfe die Nachkommastellen: Es sind zwei ($23$ Hundertstel).
-2. Ich schreibe den Bruch: $\frac{23}{100}$.
-3. Ist der Nenner 100? **Ja.**
-4. Ich schreibe als Prozent: **$23\%$**.
+* ❶ Ich prüfe die Nachkommastellen: Es sind zwei ($23$ Hundertstel).
+* ❷ Ich schreibe den Bruch: $\frac{23}{100}$.
+* ❸ Ist der Nenner 100? **Ja.**
+* ❹ Ich schreibe als Prozent: **$23\%$**.
 
 ---
 
 <div class="callout success">
 
-# Wir machen es gemeinsam (We Do)
-Auf eure Whiteboards!
-</div>
+# Auf euren Whiteboards!
 
-Wandle **0,41** in Prozent um. Schreibe die ganze Kette.
+Wandle **0,41** in Prozent um. Schreibe als Bruch und Prozent!
+
+</div>
 
 <br>
 
@@ -339,7 +341,7 @@ Auf eurem Whiteboard
 4. $0,50$
 5. $1,25$
 
-<span data-timer="5:00"></span>
+<span data-timer="3:00"></span>
 
 ---
 
@@ -354,3 +356,19 @@ Vergleiche mit deinem Partner
 3. $0,99 = \frac{99}{100} = 99\%$
 4. $0,50 = \frac{50}{100} = 50\%$
 5. $1,25 = \frac{125}{100} = 125\%$
+
+---
+
+<div class="callout success">
+
+  # Übungsphase
+  In euren Heftern!
+</div>
+
+**Buch S. 101 Nr. 1; 2**
+**Buch S. 102 Nr. 4; 5; 7; 8**
+<hr>
+
+**Zusatz: Buch S. 102 Nr. 6; 9**
+
+<span data-timer="15:00"></span>
