@@ -355,3 +355,6 @@ E = 16
 
 **Buch S. 98 Nr. 7**
 **Buch S. 99 Nr. 9a; 12; 13**
+<hr>
+
+**Zusatz: Buch S. 100 Nr. 18a; 21**
