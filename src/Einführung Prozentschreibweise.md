@@ -48,7 +48,7 @@ Zeigt mir eure Whiteboards!
 
 <br>
 
-*(Wichtig: Wir brauchen heute immer die **100** im Nenner!)*
+* *(Wichtig: Wir brauchen heute immer die **100** im Nenner!)*
 
 ---
 
@@ -82,12 +82,12 @@ Wir dürfen nur **direkt** in Prozent umwandeln, wenn der **Nenner 100** ist.
 
 | Bruch | Bereit für %? |
 | :--- | :--- |
-| $\frac{7}{10}$ | ++Nein (Nenner ist 10)++ |
-| $\frac{7}{100}$ | ++**Ja**++ |
-| $\frac{43}{100}$ | ++**Ja**++ |
-| $\frac{125}{100}$ | ++**Ja**++ |
-| $\frac{125}{1000}$ | ++Nein (Nenner ist 1000)++ |
-| $\frac{23}{50}$ | ++Nein (Nenner ist 50)++ |
+| ++$\frac{7}{10}$++ | ++Nein (Nenner ist 10)++ |
+| ++$\frac{7}{100}$++ | ++**Ja**++ |
+| ++$\frac{43}{100}$++ | ++**Ja**++ |
+| ++$\frac{125}{100}$++ | ++**Ja**++ |
+| ++$\frac{125}{1000}$++ | ++Nein (Nenner ist 1000)++ |
+| ++$\frac{23}{50}$++ | ++Nein (Nenner ist 50)++ |
 
 ---
 
