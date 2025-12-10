@@ -168,11 +168,11 @@ Ich spiegele das Viereck $ABCD$ an der Achse $g$.
 <div class="callout success">
 
 # Übungsphase
-Jetzt seid ihr dran :)
+📘 In euren Heftern!
 
 </div>
 
-* **Buch S. 152 Nr. 3**
+* ## **Buch S. 152 Nr. 3**
 
 <span data-timer="10:00"></span>
 
@@ -190,10 +190,60 @@ Spiegeln mit dem Geodreieck
 <div class="callout success">
 
 # Übungsphase
-Jetzt seid ihr dran :)
+📘 In euren Heftern!
 
 </div>
 
-* **Buch S. 152 Nr. 4**
+* ## **Buch S. 152 Nr. 4**
+
+<span data-timer="10:00"></span>
+
+---
+
+<div class="callout success">
+
+# Verständnisfrage
+Was denkst du?
+
+</div>
+
+Fritz sagt: "Ein Kreis hat überhaupt keine Symmetrieachsen!"
+
+---
+
+<div class="callout success">
+
+# Verständnisfrage
+Was denkst du?
+
+</div>
+
+Marek hat verschiedene Symmetrieachsen eingezeichnet.
+
+<br>
+
+![h:500 center](assets/image-13.png)
+
+---
+
+<div class="callout success">
+
+# Übungsphase
+👥 Mit eurem Partner!
+
+</div>
+
+* ## **Buch S. 153 Nr. 8 und 10a**
+
+---
+
+<div class="callout success">
+
+# Übungsphase
+📘 In euren Heftern!
+
+</div>
+
+* ## **Buch S. 153 Nr. 11**
 
 <span data-timer="10:00"></span>
