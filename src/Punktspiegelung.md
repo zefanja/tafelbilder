@@ -52,7 +52,6 @@ Entscheidung: Punktsymmetrisch? (Ja / Nein)
 
 
 * b) Der Buchstabe **S**
-
 ![h:300](assets/image-11.png)
 
 </div>
