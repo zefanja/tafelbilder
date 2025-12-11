@@ -117,25 +117,25 @@ module.exports = `
 
 <script>
 (() => {
-  let currentTool = 'none';
-  let activePointerId = null;
-  let isDrawing = false;
-  
-  // === CONFIG & VARIABLES ===
+  // === CONFIG ===
   let penWidth = 5;
   let eraserWidth = 30;
+  const HOLD_DELAY = 600;       // ms bis zur Form-Erkennung
+  const JITTER_THRESHOLD = 6;   // Pixel Toleranz für "Stillhalten"
   
-  // Straight Line Logic
-  let straightLineTimer = null;
-  let isStraightMode = false;
-  let canvasSnapshot = null; 
-  let strokeStartPos = null; 
-  let lastPos = { x: 0, y: 0 }; // Aktuelle Position
-  let lastStablePos = { x: 0, y: 0 }; // Position beim letzten Timer-Reset
+  // === STATE ===
+  let currentTool = 'none';
+  let isDrawing = false;
+  let activePointerId = null;
   
-  const STRAIGHT_DELAY = 600; // ms Stillhalten
-  const JITTER_THRESHOLD = 6; // Pixel Toleranz (Wichtig für iPad!)
+  // Shape Recognition State
+  let shapeTimer = null;
+  let isShapeMode = false;
+  let canvasSnapshot = null;
+  let strokePoints = [];        // Speichert ALLE Punkte des aktuellen Strichs
+  let lastStablePos = { x: 0, y: 0 };
 
+  // Canvas Refs
   let globalCanvas = null;
   let globalCtx = null;
 
@@ -148,7 +148,6 @@ module.exports = `
     globalCanvas.id = 'mps-global-canvas';
     document.body.appendChild(globalCanvas);
     
-    // 'willReadFrequently' hilft Performance bei getImageData auf mobilen Geräten
     globalCtx = globalCanvas.getContext('2d', { willReadFrequently: true });
     
     resizeCanvas();
@@ -158,7 +157,251 @@ module.exports = `
     setTimeout(checkTimer, 500);
   };
 
-  // --- SLIDE NAVIGATION ---
+  // --- HELPER: GEOMETRY & MATH ---
+  const getPos = (e) => {
+    const dpr = window.devicePixelRatio || 1;
+    let cx = e.clientX;
+    let cy = e.clientY;
+    if (cx === undefined && e.touches && e.touches.length > 0) {
+        cx = e.touches[0].clientX;
+        cy = e.touches[0].clientY;
+    }
+    return { x: cx * dpr, y: cy * dpr };
+  };
+
+  const dist = (p1, p2) => Math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2);
+
+  // Bounding Box berechnen
+  const getBounds = (points) => {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      points.forEach(p => {
+          if (p.x < minX) minX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y > maxY) maxY = p.y;
+      });
+      return { 
+          minX, minY, maxX, maxY, 
+          w: maxX - minX, h: maxY - minY, 
+          centerX: minX + (maxX - minX)/2, centerY: minY + (maxY - minY)/2 
+      };
+  };
+
+  // --- SHAPE RECOGNITION LOGIC ---
+  const detectAndDrawShape = () => {
+      if (!canvasSnapshot || strokePoints.length < 5) return;
+
+      // 1. Original wiederherstellen (Gekritzel löschen)
+      globalCtx.putImageData(canvasSnapshot, 0, 0);
+
+      // 2. Setup Stift
+      const dpr = window.devicePixelRatio || 1;
+      globalCtx.lineWidth = penWidth * dpr;
+      globalCtx.lineCap = 'round';
+      globalCtx.lineJoin = 'round';
+      globalCtx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
+      globalCtx.beginPath();
+
+      const start = strokePoints[0];
+      const end = strokePoints[strokePoints.length - 1];
+      const totalLen = strokePoints.reduce((acc, p, i) => i > 0 ? acc + dist(p, strokePoints[i-1]) : 0, 0);
+      const directDist = dist(start, end);
+
+      // 3. ENTSCHEIDUNG: LINIE vs. GESCHLOSSENE FORM
+      // Wenn Start und Ende weit weg sind im Vergleich zur Gesamtlänge -> Linie
+      if (directDist > 0.85 * totalLen) {
+          // === LINIE ===
+          globalCtx.moveTo(start.x, start.y);
+          globalCtx.lineTo(end.x, end.y);
+          globalCtx.stroke();
+          return;
+      }
+
+      // === GESCHLOSSENE FORM (Kreis, Rechteck, Dreieck) ===
+      const bounds = getBounds(strokePoints);
+      
+      // Feature A: Wie rund ist es? (Standardabweichung vom Radius)
+      let radiusSum = 0;
+      strokePoints.forEach(p => radiusSum += dist(p, {x: bounds.centerX, y: bounds.centerY}));
+      const avgRadius = radiusSum / strokePoints.length;
+      let varianceSum = 0;
+      strokePoints.forEach(p => varianceSum += (dist(p, {x: bounds.centerX, y: bounds.centerY}) - avgRadius)**2);
+      const radiusVariance = Math.sqrt(varianceSum / strokePoints.length) / avgRadius;
+
+      // Entscheidung: Kreis vs. Polygon
+      if (radiusVariance < 0.22) { 
+          // === KREIS / ELLIPSE ===
+          // Wir zeichnen eine Ellipse, die in die Bounding Box passt
+          globalCtx.ellipse(bounds.centerX, bounds.centerY, bounds.w / 2, bounds.h / 2, 0, 0, 2 * Math.PI);
+          globalCtx.stroke();
+      } else {
+          // Es ist eckig (Rechteck oder Dreieck)
+          // Wir unterscheiden anhand der "Fülle" der Bounding Box.
+          // Ein Dreieck füllt seine Box signifikant weniger als ein Rechteck.
+          
+          // Wir nutzen eine Convex Hull Approximation (einfachster Weg: Fläche des Polygons)
+          // Shoelace Formula für Fläche des gezeichneten Pfades
+          let area = 0;
+          for (let i = 0; i < strokePoints.length; i++) {
+              let j = (i + 1) % strokePoints.length;
+              area += strokePoints[i].x * strokePoints[j].y;
+              area -= strokePoints[j].x * strokePoints[i].y;
+          }
+          area = Math.abs(area) / 2;
+          
+          const boxArea = bounds.w * bounds.h;
+          const fillRatio = area / boxArea;
+
+          // Rechteck füllt ~1.0, Dreieck ~0.5. Cutoff bei 0.65
+          if (fillRatio > 0.60) {
+              // === RECHTECK ===
+              globalCtx.rect(bounds.minX, bounds.minY, bounds.w, bounds.h);
+              globalCtx.stroke();
+          } else {
+              // === DREIECK ===
+              // Dreieck ist schwierig, da wir die 3 Ecken finden müssen.
+              // Algorithmus: 
+              // 1. Punkt A = weitester Punkt vom Zentrum
+              // 2. Punkt B = weitester Punkt von A
+              // 3. Punkt C = weitester Punkt von der Linie AB
+              
+              let pA = strokePoints[0];
+              let maxD = -1;
+              const center = {x: bounds.centerX, y: bounds.centerY};
+              
+              strokePoints.forEach(p => { const d = dist(p, center); if(d>maxD){maxD=d; pA=p;} });
+              
+              let pB = pA; maxD = -1;
+              strokePoints.forEach(p => { const d = dist(p, pA); if(d>maxD){maxD=d; pB=p;} });
+              
+              let pC = pA; maxD = -1;
+              // Abstand Punkt zu Linie AB
+              const distToLine = (p, l1, l2) => {
+                  return Math.abs((l2.x - l1.x)*(l1.y - p.y) - (l1.x - p.x)*(l2.y - l1.y)) / dist(l1, l2);
+              };
+              strokePoints.forEach(p => { const d = distToLine(p, pA, pB); if(d>maxD){maxD=d; pC=p;} });
+
+              globalCtx.moveTo(pA.x, pA.y);
+              globalCtx.lineTo(pB.x, pB.y);
+              globalCtx.lineTo(pC.x, pC.y);
+              globalCtx.closePath();
+              globalCtx.stroke();
+          }
+      }
+  };
+
+  const triggerShapeMode = () => {
+      if (!isDrawing || currentTool === 'eraser' || isShapeMode) return;
+      isShapeMode = true;
+      if (navigator.vibrate) navigator.vibrate(20);
+      detectAndDrawShape();
+  };
+
+  // --- EVENTS ---
+  const attachEvents = () => {
+    const start = (e) => {
+      if (currentTool === 'none') return;
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
+
+      if (isDrawing) return;
+      isDrawing = true;
+      activePointerId = e.pointerId;
+      
+      const p = getPos(e);
+      strokePoints = [p]; // Reset Points
+      lastStablePos = p;
+      isShapeMode = false;
+
+      try { globalCanvas.setPointerCapture(e.pointerId); } catch(err){}
+
+      if (currentTool !== 'eraser') {
+        canvasSnapshot = globalCtx.getImageData(0, 0, globalCanvas.width, globalCanvas.height);
+        shapeTimer = setTimeout(triggerShapeMode, HOLD_DELAY);
+      } else {
+        canvasSnapshot = null;
+      }
+
+      globalCtx.beginPath(); 
+      globalCtx.moveTo(p.x, p.y);
+    };
+    
+    const move = (e) => {
+      if (currentTool === 'none' || !isDrawing) return;
+      if (activePointerId !== e.pointerId) return;
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
+      
+      const p = getPos(e);
+
+      // Wenn ShapeMode aktiv ist, updaten wir die Form dynamisch (Rubber-banding)
+      // Für einfache Formen ist das komplex, wir behalten die erkannte Form bei
+      // und erlauben nur Endpunkt-Manipulation bei Linien.
+      // Für MVP: Wenn Form erkannt wurde, tun wir nichts mehr im Move außer warten.
+      if (isShapeMode) {
+           // Optional: Hier könnte man Rotation/Skalierung einbauen
+           // Vorerst: Die Form ist "eingerastet".
+           return;
+      }
+
+      // Normales Zeichnen + Sammeln
+      strokePoints.push(p);
+
+      globalCtx.lineCap = 'round'; 
+      globalCtx.lineJoin = 'round';
+      const dpr = window.devicePixelRatio || 1;
+      globalCtx.lineWidth = (currentTool === 'eraser' ? eraserWidth : penWidth) * dpr;
+      globalCtx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
+      globalCtx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
+      
+      globalCtx.lineTo(p.x, p.y); 
+      globalCtx.stroke();
+
+      // Timer Logik (iPad Jitter Fix)
+      if (currentTool !== 'eraser') {
+          if (dist(p, lastStablePos) > JITTER_THRESHOLD) {
+              clearTimeout(shapeTimer);
+              shapeTimer = setTimeout(triggerShapeMode, HOLD_DELAY);
+              lastStablePos = p;
+          }
+      }
+    };
+    
+    const end = (e) => { 
+      if (activePointerId !== e.pointerId) return;
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
+      
+      isDrawing = false;
+      activePointerId = null;
+      if (shapeTimer) clearTimeout(shapeTimer);
+      canvasSnapshot = null;
+      isShapeMode = false;
+
+      try { globalCanvas.releasePointerCapture(e.pointerId); } catch(err){}
+    };
+    
+    globalCanvas.addEventListener('pointerdown', start, { passive: false }); 
+    globalCanvas.addEventListener('pointermove', move, { passive: false });
+    globalCanvas.addEventListener('pointerup', end, { passive: false }); 
+    globalCanvas.addEventListener('pointercancel', end, { passive: false });
+    globalCanvas.addEventListener('touchstart', (e) => { if (currentTool !== 'none') e.preventDefault(); }, { passive: false });
+  };
+
+  // --- BOILERPLATE (Resize, UI, Menu) ---
+  const resizeCanvas = () => {
+    if (!globalCanvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+    const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    globalCanvas.width = Math.round(w * dpr);
+    globalCanvas.height = Math.round(h * dpr);
+    globalCanvas.style.width = w + 'px';
+    globalCanvas.style.height = h + 'px';
+  };
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeCanvas);
+  else window.addEventListener('resize', resizeCanvas);
+
   const initSlideMenu = () => {
     const sections = document.querySelectorAll('section');
     const menu = document.getElementById('menu-slide-nav');
@@ -175,175 +418,13 @@ module.exports = `
     });
   };
 
-  // --- RESIZE ---
-  const resizeCanvas = () => {
-    if (!globalCanvas) return;
-    const dpr = window.devicePixelRatio || 1;
-    // VisualViewport ist auf iOS Safari wichtig für korrekte Größe bei Zoom/Tastatur
-    const w = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-    const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    
-    globalCanvas.width = Math.round(w * dpr);
-    globalCanvas.height = Math.round(h * dpr);
-    globalCanvas.style.width = w + 'px';
-    globalCanvas.style.height = h + 'px';
-  };
-  
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeCanvas);
-  else window.addEventListener('resize', resizeCanvas);
-
-  // --- GEOMETRY & DRAWING HELPERS ---
-  const getPos = (e) => {
-    const dpr = window.devicePixelRatio || 1;
-    // Pointers Events sind auf iPad meist zuverlässig, aber Fallback ist gut
-    let cx = e.clientX;
-    let cy = e.clientY;
-    if (cx === undefined && e.touches && e.touches.length > 0) {
-        cx = e.touches[0].clientX;
-        cy = e.touches[0].clientY;
-    }
-    return { x: cx * dpr, y: cy * dpr };
-  };
-
-  const getDistance = (p1, p2) => {
-      return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-  };
-
-  const drawStraightLine = (toPos) => {
-      if (!canvasSnapshot || !strokeStartPos) return;
-      
-      // 1. Snapshot wiederherstellen (löscht den krakeligen Strich)
-      globalCtx.putImageData(canvasSnapshot, 0, 0);
-      
-      // 2. Gerade Linie zeichnen
-      globalCtx.beginPath();
-      globalCtx.moveTo(strokeStartPos.x, strokeStartPos.y);
-      globalCtx.lineCap = 'round';
-      globalCtx.lineJoin = 'round';
-      const dpr = window.devicePixelRatio || 1;
-      globalCtx.lineWidth = penWidth * dpr; // Eraser macht im Straight Mode wenig Sinn, daher PenLogic
-      globalCtx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
-      globalCtx.lineTo(toPos.x, toPos.y);
-      globalCtx.stroke();
-  };
-
-  const triggerStraightMode = () => {
-      if (!isDrawing || currentTool === 'eraser' || isStraightMode) return;
-      isStraightMode = true;
-      // Kurzes Feedback (nur Android, iOS Safari ignoriert das meistens)
-      if (navigator.vibrate) navigator.vibrate(20);
-      drawStraightLine(lastPos);
-  };
-
-  // --- EVENTS ---
-  const attachEvents = () => {
-    const start = (e) => {
-      if (currentTool === 'none') return;
-      // WICHTIG FÜR IPAD: Verhindert Scrollen/Zoomen sofort
-      if (e.cancelable) e.preventDefault();
-      e.stopPropagation();
-
-      if (isDrawing) return;
-      isDrawing = true;
-      activePointerId = e.pointerId;
-      
-      const p = getPos(e);
-      strokeStartPos = p;
-      lastPos = p;
-      lastStablePos = p;
-      isStraightMode = false;
-
-      // Pointer Capture für sauberes Tracking auch außerhalb des Canvas
-      try { 
-          globalCanvas.setPointerCapture(e.pointerId); 
-      } catch(err){}
-
-      // Snapshot für Straight-Line Feature
-      if (currentTool !== 'eraser') {
-        canvasSnapshot = globalCtx.getImageData(0, 0, globalCanvas.width, globalCanvas.height);
-        straightLineTimer = setTimeout(triggerStraightMode, STRAIGHT_DELAY);
-      } else {
-        canvasSnapshot = null;
-      }
-
-      globalCtx.beginPath(); 
-      globalCtx.moveTo(p.x, p.y);
-    };
-    
-    const move = (e) => {
-      if (currentTool === 'none' || !isDrawing) return;
-      if (activePointerId !== e.pointerId) return;
-      if (e.cancelable) e.preventDefault();
-      e.stopPropagation();
-      
-      const p = getPos(e);
-      lastPos = p;
-
-      if (isStraightMode) {
-          // Modus A: Wir sind bereits im "Gerade"-Modus -> Gummiband-Effekt
-          drawStraightLine(p);
-      } else {
-          // Modus B: Normales Zeichnen
-          globalCtx.lineCap = 'round'; 
-          globalCtx.lineJoin = 'round';
-          const dpr = window.devicePixelRatio || 1;
-          globalCtx.lineWidth = (currentTool === 'eraser' ? eraserWidth : penWidth) * dpr;
-          globalCtx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
-          globalCtx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
-          
-          globalCtx.lineTo(p.x, p.y); 
-          globalCtx.stroke();
-
-          // TIMER LOGIK MIT TOLERANZ (Das ist der Fix für das iPad)
-          if (currentTool !== 'eraser') {
-              const dist = getDistance(p, lastStablePos);
-              // Nur resetten, wenn wir uns signifikant bewegt haben
-              if (dist > JITTER_THRESHOLD) {
-                  clearTimeout(straightLineTimer);
-                  straightLineTimer = setTimeout(triggerStraightMode, STRAIGHT_DELAY);
-                  lastStablePos = p;
-              }
-          }
-      }
-    };
-    
-    const end = (e) => { 
-      if (activePointerId !== e.pointerId) return;
-      if (e.cancelable) e.preventDefault();
-      e.stopPropagation();
-      
-      isDrawing = false;
-      activePointerId = null;
-      
-      if (straightLineTimer) clearTimeout(straightLineTimer);
-      canvasSnapshot = null;
-      isStraightMode = false;
-
-      try { globalCanvas.releasePointerCapture(e.pointerId); } catch(err){}
-    };
-    
-    // Events binden
-    globalCanvas.addEventListener('pointerdown', start, { passive: false }); 
-    globalCanvas.addEventListener('pointermove', move, { passive: false });
-    globalCanvas.addEventListener('pointerup', end, { passive: false }); 
-    globalCanvas.addEventListener('pointercancel', end, { passive: false });
-    // Touchstart präventiv blocken für Scrolling
-    globalCanvas.addEventListener('touchstart', (e) => { if (currentTool !== 'none') e.preventDefault(); }, { passive: false });
-  };
-
-  // --- UI API ---
   window.setMpsTool = (t) => {
     currentTool = t;
     isDrawing = false;
     activePointerId = null;
     if (!globalCanvas) return;
-    if (t === 'none') {
-        globalCanvas.classList.remove('active');
-        globalCanvas.style.pointerEvents = 'none'; // Click-Through ermöglichen
-    } else {
-        globalCanvas.classList.add('active');
-        globalCanvas.style.pointerEvents = 'auto'; // Zeichnen ermöglichen
-    }
+    if (t === 'none') { globalCanvas.classList.remove('active'); globalCanvas.style.pointerEvents = 'none'; } 
+    else { globalCanvas.classList.add('active'); globalCanvas.style.pointerEvents = 'auto'; }
     
     document.querySelectorAll('.mps-tool').forEach(b => b.classList.remove('active'));
     if (t === 'black') document.querySelector('.btn-blk').classList.add('active');
@@ -366,14 +447,13 @@ module.exports = `
     if (!document.fullscreenElement) document.documentElement.requestFullscreen();
     else if (document.exitFullscreen) document.exitFullscreen();
   };
-
   window.navigateSlide = (dir) => {
       const key = dir === 'next' ? 'ArrowRight' : 'ArrowLeft';
       document.dispatchEvent(new KeyboardEvent('keydown',{'key': key}));
       setTimeout(checkTimer, 100);
   }
 
-  // --- TIMER WIDGET (Unverändert) ---
+  // --- TIMER WIDGET ---
   let timerInterval = null;
   let remainingSeconds = 0;
   let defaultSeconds = 0;
@@ -417,7 +497,6 @@ module.exports = `
     } else { widget.style.display = 'none'; stopTimer(); }
   };
 
-  // Misc Events
   window.addEventListener('hashchange', () => setTimeout(checkTimer, 100));
   window.addEventListener('popstate', () => setTimeout(checkTimer, 100));
   document.addEventListener('click', (e) => { if (!e.target.closest('#mps-footer')) document.querySelectorAll('.mps-popover').forEach(p => p.style.display = 'none'); });
