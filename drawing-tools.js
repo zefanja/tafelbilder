@@ -121,18 +121,21 @@ module.exports = `
   let activePointerId = null;
   let isDrawing = false;
   
-  // === NEU: Variablen für Straight-Line Feature ===
-  let straightLineTimer = null;
-  let isStraightMode = false;
-  let canvasSnapshot = null; // Speichert das Bild vor dem aktuellen Strich
-  let strokeStartPos = null; // Startpunkt des Strichs
-  let lastPointerPos = null; // Aktuelle Position für den Timer-Callback
-  const STRAIGHT_DELAY = 600; // ms bis zur Begradigung
-  // ================================================
-
+  // === CONFIG & VARIABLES ===
   let penWidth = 5;
   let eraserWidth = 30;
   
+  // Straight Line Logic
+  let straightLineTimer = null;
+  let isStraightMode = false;
+  let canvasSnapshot = null; 
+  let strokeStartPos = null; 
+  let lastPos = { x: 0, y: 0 }; // Aktuelle Position
+  let lastStablePos = { x: 0, y: 0 }; // Position beim letzten Timer-Reset
+  
+  const STRAIGHT_DELAY = 600; // ms Stillhalten
+  const JITTER_THRESHOLD = 6; // Pixel Toleranz (Wichtig für iPad!)
+
   let globalCanvas = null;
   let globalCtx = null;
 
@@ -145,7 +148,8 @@ module.exports = `
     globalCanvas.id = 'mps-global-canvas';
     document.body.appendChild(globalCanvas);
     
-    globalCtx = globalCanvas.getContext('2d', { willReadFrequently: true }); // Optimized for read (snapshot)
+    // 'willReadFrequently' hilft Performance bei getImageData auf mobilen Geräten
+    globalCtx = globalCanvas.getContext('2d', { willReadFrequently: true });
     
     resizeCanvas();
     attachEvents();
@@ -154,35 +158,19 @@ module.exports = `
     setTimeout(checkTimer, 500);
   };
 
-  // --- SLIDE NAVIGATION BUILDER ---
+  // --- SLIDE NAVIGATION ---
   const initSlideMenu = () => {
     const sections = document.querySelectorAll('section');
     const menu = document.getElementById('menu-slide-nav');
     if(!menu) return;
-    
     menu.innerHTML = ''; 
-    
     sections.forEach((sec, idx) => {
        const slideNum = idx + 1;
-       let title = sec.getAttribute('data-title');
-       if (!title) {
-           const h1 = sec.querySelector('h1');
-           if(h1) title = h1.innerText;
-           else {
-               const h2 = sec.querySelector('h2');
-               if(h2) title = h2.innerText;
-           }
-       }
-       if (!title) title = 'Folie ' + slideNum;
+       let title = sec.getAttribute('data-title') || 'Folie ' + slideNum;
        if(title.length > 25) title = title.substring(0, 25) + '...';
-
        const btn = document.createElement('button');
        btn.innerText = slideNum + '. ' + title;
-       btn.onclick = () => {
-           window.location.hash = slideNum;
-           toggleMenu('menu-slide-nav');
-           setTimeout(checkTimer, 200);
-       };
+       btn.onclick = () => { window.location.hash = slideNum; toggleMenu('menu-slide-nav'); setTimeout(checkTimer, 200); };
        menu.appendChild(btn);
     });
   };
@@ -191,6 +179,7 @@ module.exports = `
   const resizeCanvas = () => {
     if (!globalCanvas) return;
     const dpr = window.devicePixelRatio || 1;
+    // VisualViewport ist auf iOS Safari wichtig für korrekte Größe bei Zoom/Tastatur
     const w = window.visualViewport ? window.visualViewport.width : window.innerWidth;
     const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     
@@ -198,20 +187,15 @@ module.exports = `
     globalCanvas.height = Math.round(h * dpr);
     globalCanvas.style.width = w + 'px';
     globalCanvas.style.height = h + 'px';
-    globalCanvas.style.position = 'fixed';
-    globalCanvas.style.top = '0';
-    globalCanvas.style.left = '0';
   };
   
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', resizeCanvas);
-  } else {
-    window.addEventListener('resize', resizeCanvas);
-  }
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeCanvas);
+  else window.addEventListener('resize', resizeCanvas);
 
-  // --- INPUT / DRAWING ---
+  // --- GEOMETRY & DRAWING HELPERS ---
   const getPos = (e) => {
     const dpr = window.devicePixelRatio || 1;
+    // Pointers Events sind auf iPad meist zuverlässig, aber Fallback ist gut
     let cx = e.clientX;
     let cy = e.clientY;
     if (cx === undefined && e.touches && e.touches.length > 0) {
@@ -221,11 +205,14 @@ module.exports = `
     return { x: cx * dpr, y: cy * dpr };
   };
 
-  // === NEU: Hilfsfunktion zum Zeichnen der geraden Linie ===
+  const getDistance = (p1, p2) => {
+      return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+  };
+
   const drawStraightLine = (toPos) => {
       if (!canvasSnapshot || !strokeStartPos) return;
       
-      // 1. Canvas zurücksetzen (Freihand-Strich löschen)
+      // 1. Snapshot wiederherstellen (löscht den krakeligen Strich)
       globalCtx.putImageData(canvasSnapshot, 0, 0);
       
       // 2. Gerade Linie zeichnen
@@ -234,42 +221,46 @@ module.exports = `
       globalCtx.lineCap = 'round';
       globalCtx.lineJoin = 'round';
       const dpr = window.devicePixelRatio || 1;
-      globalCtx.lineWidth = penWidth * dpr;
+      globalCtx.lineWidth = penWidth * dpr; // Eraser macht im Straight Mode wenig Sinn, daher PenLogic
       globalCtx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
       globalCtx.lineTo(toPos.x, toPos.y);
       globalCtx.stroke();
   };
 
-  // === NEU: Timer Trigger Funktion ===
   const triggerStraightMode = () => {
       if (!isDrawing || currentTool === 'eraser' || isStraightMode) return;
-      
       isStraightMode = true;
-      // Kurzes Haptic Feedback (vibriert auf mobilen Geräten)
+      // Kurzes Feedback (nur Android, iOS Safari ignoriert das meistens)
       if (navigator.vibrate) navigator.vibrate(20);
-      
-      drawStraightLine(lastPointerPos);
+      drawStraightLine(lastPos);
   };
 
+  // --- EVENTS ---
   const attachEvents = () => {
     const start = (e) => {
       if (currentTool === 'none') return;
+      // WICHTIG FÜR IPAD: Verhindert Scrollen/Zoomen sofort
       if (e.cancelable) e.preventDefault();
       e.stopPropagation();
 
-      if (isDrawing || activePointerId !== null) return;
+      if (isDrawing) return;
       isDrawing = true;
       activePointerId = e.pointerId;
       
       const p = getPos(e);
-      strokeStartPos = p; // Startpunkt merken
-      lastPointerPos = p;
-      isStraightMode = false; // Reset
+      strokeStartPos = p;
+      lastPos = p;
+      lastStablePos = p;
+      isStraightMode = false;
 
-      // Snapshot machen (nur wenn nicht Radierer, spart Performance)
+      // Pointer Capture für sauberes Tracking auch außerhalb des Canvas
+      try { 
+          globalCanvas.setPointerCapture(e.pointerId); 
+      } catch(err){}
+
+      // Snapshot für Straight-Line Feature
       if (currentTool !== 'eraser') {
         canvasSnapshot = globalCtx.getImageData(0, 0, globalCanvas.width, globalCanvas.height);
-        // Timer starten: Wenn User stillhält, wird es gerade
         straightLineTimer = setTimeout(triggerStraightMode, STRAIGHT_DELAY);
       } else {
         canvasSnapshot = null;
@@ -277,14 +268,6 @@ module.exports = `
 
       globalCtx.beginPath(); 
       globalCtx.moveTo(p.x, p.y);
-      
-      setTimeout(() => {
-        try { 
-          if (globalCanvas.hasPointerCapture && !globalCanvas.hasPointerCapture(e.pointerId)) {
-            globalCanvas.setPointerCapture(e.pointerId); 
-          }
-        } catch(err){}
-      }, 0);
     };
     
     const move = (e) => {
@@ -294,14 +277,13 @@ module.exports = `
       e.stopPropagation();
       
       const p = getPos(e);
-      lastPointerPos = p;
+      lastPos = p;
 
-      // === LOGIK: Gerade Linie vs. Freihand ===
       if (isStraightMode) {
-          // Wir sind im "Rubber-Band" Modus -> Linie aktualisieren
+          // Modus A: Wir sind bereits im "Gerade"-Modus -> Gummiband-Effekt
           drawStraightLine(p);
       } else {
-          // Normales Zeichnen
+          // Modus B: Normales Zeichnen
           globalCtx.lineCap = 'round'; 
           globalCtx.lineJoin = 'round';
           const dpr = window.devicePixelRatio || 1;
@@ -312,10 +294,15 @@ module.exports = `
           globalCtx.lineTo(p.x, p.y); 
           globalCtx.stroke();
 
-          // Timer Reset (Debounce): Nur wenn man "anhält", wird begradigt
+          // TIMER LOGIK MIT TOLERANZ (Das ist der Fix für das iPad)
           if (currentTool !== 'eraser') {
-              if (straightLineTimer) clearTimeout(straightLineTimer);
-              straightLineTimer = setTimeout(triggerStraightMode, STRAIGHT_DELAY);
+              const dist = getDistance(p, lastStablePos);
+              // Nur resetten, wenn wir uns signifikant bewegt haben
+              if (dist > JITTER_THRESHOLD) {
+                  clearTimeout(straightLineTimer);
+                  straightLineTimer = setTimeout(triggerStraightMode, STRAIGHT_DELAY);
+                  lastStablePos = p;
+              }
           }
       }
     };
@@ -328,33 +315,35 @@ module.exports = `
       isDrawing = false;
       activePointerId = null;
       
-      // Aufräumen
       if (straightLineTimer) clearTimeout(straightLineTimer);
       canvasSnapshot = null;
       isStraightMode = false;
 
-      try { 
-        if (globalCanvas.hasPointerCapture && globalCanvas.hasPointerCapture(e.pointerId)) {
-          globalCanvas.releasePointerCapture(e.pointerId); 
-        }
-      } catch(err){}
+      try { globalCanvas.releasePointerCapture(e.pointerId); } catch(err){}
     };
     
+    // Events binden
     globalCanvas.addEventListener('pointerdown', start, { passive: false }); 
     globalCanvas.addEventListener('pointermove', move, { passive: false });
     globalCanvas.addEventListener('pointerup', end, { passive: false }); 
     globalCanvas.addEventListener('pointercancel', end, { passive: false });
+    // Touchstart präventiv blocken für Scrolling
     globalCanvas.addEventListener('touchstart', (e) => { if (currentTool !== 'none') e.preventDefault(); }, { passive: false });
   };
 
-  // --- UI ACTIONS ---
+  // --- UI API ---
   window.setMpsTool = (t) => {
     currentTool = t;
     isDrawing = false;
     activePointerId = null;
     if (!globalCanvas) return;
-    if (t === 'none') globalCanvas.classList.remove('active');
-    else globalCanvas.classList.add('active');
+    if (t === 'none') {
+        globalCanvas.classList.remove('active');
+        globalCanvas.style.pointerEvents = 'none'; // Click-Through ermöglichen
+    } else {
+        globalCanvas.classList.add('active');
+        globalCanvas.style.pointerEvents = 'auto'; // Zeichnen ermöglichen
+    }
     
     document.querySelectorAll('.mps-tool').forEach(b => b.classList.remove('active'));
     if (t === 'black') document.querySelector('.btn-blk').classList.add('active');
@@ -372,6 +361,11 @@ module.exports = `
   
   window.setPenWidth = (w) => { penWidth = w; document.getElementById('menu-pen-size').style.display = 'none'; };
   window.setEraserWidth = (w) => { eraserWidth = w; document.getElementById('menu-era-size').style.display = 'none'; };
+  window.clearVisibleSlide = () => { if (globalCtx) globalCtx.clearRect(0, 0, globalCanvas.width, globalCanvas.height); };
+  window.toggleMpsFS = () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else if (document.exitFullscreen) document.exitFullscreen();
+  };
 
   window.navigateSlide = (dir) => {
       const key = dir === 'next' ? 'ArrowRight' : 'ArrowLeft';
@@ -379,25 +373,11 @@ module.exports = `
       setTimeout(checkTimer, 100);
   }
 
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('#mps-footer')) {
-      document.querySelectorAll('.mps-popover').forEach(p => p.style.display = 'none');
-    }
-  });
-
-  window.clearVisibleSlide = () => { if (globalCtx) globalCtx.clearRect(0, 0, globalCanvas.width, globalCanvas.height); };
-  
-  window.toggleMpsFS = () => {
-    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-    else if (document.exitFullscreen) document.exitFullscreen();
-  };
-
-  // --- TIMER ---
+  // --- TIMER WIDGET (Unverändert) ---
   let timerInterval = null;
   let remainingSeconds = 0;
   let defaultSeconds = 0;
   let isTimerRunning = false;
-
   const updateTimerDisplay = () => {
     const m = Math.floor(remainingSeconds / 60);
     const s = remainingSeconds % 60;
@@ -409,76 +389,39 @@ module.exports = `
         else display.classList.remove('mps-timer-finished');
     }
   };
-
-  const stopTimer = () => {
-    if (timerInterval) clearInterval(timerInterval);
-    isTimerRunning = false;
-    updateTimerDisplay();
-  };
-
+  const stopTimer = () => { if (timerInterval) clearInterval(timerInterval); isTimerRunning = false; updateTimerDisplay(); };
   const startTimer = () => {
     if (isTimerRunning) return;
     isTimerRunning = true;
     updateTimerDisplay();
     timerInterval = setInterval(() => {
-      if (remainingSeconds > 0) {
-        remainingSeconds--;
-        updateTimerDisplay();
-      } else {
-        stopTimer();
-        const display = document.getElementById('mps-timer-display');
-        if(display) display.classList.add('mps-timer-finished');
-      }
+      if (remainingSeconds > 0) { remainingSeconds--; updateTimerDisplay(); } else { stopTimer(); const d = document.getElementById('mps-timer-display'); if(d) d.classList.add('mps-timer-finished'); }
     }, 1000);
   };
-
   window.timerToggle = () => isTimerRunning ? stopTimer() : startTimer();
   window.timerReset = () => { stopTimer(); remainingSeconds = defaultSeconds; const d = document.getElementById('mps-timer-display'); if(d) d.classList.remove('mps-timer-finished'); updateTimerDisplay(); };
   window.timerAdd = (mins) => { remainingSeconds += (mins * 60); updateTimerDisplay(); if(isTimerRunning) { const d = document.getElementById('mps-timer-display'); if(d) d.classList.remove('mps-timer-finished'); }};
 
   const checkTimer = () => {
     if (globalCanvas) globalCanvas.style.display = 'none';
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
-    const hitElement = document.elementFromPoint(centerX, centerY);
+    const hitElement = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
     if (globalCanvas) globalCanvas.style.display = '';
-
     const sec = hitElement ? hitElement.closest('section') : document.querySelector('section');
     const widget = document.getElementById('mps-timer-widget');
     if(!widget) return;
-
-    if (sec) {
-      const timerEl = sec.querySelector('[data-timer]');
-      if (timerEl) {
-        const val = timerEl.getAttribute('data-timer');
-        let seconds = 0;
-        if (val.includes(':')) {
-          const parts = val.split(':');
-          seconds = (parseInt(parts[0]) * 60) + parseInt(parts[1]);
-        } else {
-          seconds = parseInt(val) * 60;
-        }
-        
-        if (seconds !== defaultSeconds) {
-            stopTimer();
-            defaultSeconds = seconds;
-            remainingSeconds = seconds;
-            widget.style.display = 'flex';
-            startTimer();
-        } else {
-             widget.style.display = 'flex';
-        }
-      } else {
-        widget.style.display = 'none';
-        stopTimer();
-      }
-    }
+    if (sec && sec.querySelector('[data-timer]')) {
+      const val = sec.querySelector('[data-timer]').getAttribute('data-timer');
+      let seconds = val.includes(':') ? (parseInt(val.split(':')[0]) * 60) + parseInt(val.split(':')[1]) : parseInt(val) * 60;
+      if (seconds !== defaultSeconds) { stopTimer(); defaultSeconds = seconds; remainingSeconds = seconds; widget.style.display = 'flex'; startTimer(); } 
+      else { widget.style.display = 'flex'; }
+    } else { widget.style.display = 'none'; stopTimer(); }
   };
 
+  // Misc Events
   window.addEventListener('hashchange', () => setTimeout(checkTimer, 100));
   window.addEventListener('popstate', () => setTimeout(checkTimer, 100));
-  window.addEventListener('touchend', () => setTimeout(checkTimer, 300));
-  window.addEventListener('keyup', (e) => { if(e.key.startsWith('Arrow') || e.key === ' ' || e.key === 'PageDown' || e.key === 'PageUp') setTimeout(checkTimer, 100); });
+  document.addEventListener('click', (e) => { if (!e.target.closest('#mps-footer')) document.querySelectorAll('.mps-popover').forEach(p => p.style.display = 'none'); });
+  window.addEventListener('keyup', (e) => { if(['ArrowRight','ArrowLeft',' '].includes(e.key)) setTimeout(checkTimer, 100); });
   
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(initCanvas, 300));
   else setTimeout(initCanvas, 300);
