@@ -120,38 +120,37 @@ module.exports = `
   // === CONFIG ===
   let penWidth = 5;
   let eraserWidth = 30;
-  const HOLD_DELAY = 500;       // ms bis zum Einrasten (etwas schneller)
-  const JITTER_THRESHOLD = 5;   // Pixel Toleranz
+  const HOLD_DELAY = 500;
+  const JITTER_THRESHOLD = 5;
   
   // === STATE ===
   let currentTool = 'none';
   let isDrawing = false;
   let activePointerId = null;
-  let useShapeDetection = false; // Standard: Nur Linien
+  let useShapeDetection = false;
 
-  // Shape Logic State
+  // Shape / Straight Line State
   let shapeTimer = null;
-  let isSnapMode = false;       // Modus: Form erkannt, User hält noch gedrückt
-  let detectedType = null;      // 'line', 'rect', 'circle', 'triangle'
-  
-  let canvasSnapshot = null;    // Bild vor dem Strich
-  let strokePoints = [];        // Alle Punkte des aktuellen Strichs
-  let lastPos = {x:0, y:0};     // Aktuelle Mausposition
+  let isSnapMode = false;
+  let detectedType = null;
+  let strokePoints = [];
+  let lastPos = {x:0, y:0};
   let lastStablePos = {x:0, y:0}; 
-
-  // Speichert den Zustand ZUM ZEITPUNKT des Einrastens
-  let snapState = {
-      pointerStart: {x:0, y:0}, // Wo war die Maus beim Einrasten?
-      bounds: {x:0, y:0, w:0, h:0}, // Wie groß war die Kritzelei?
-      startPoint: {x:0, y:0}    // Startpunkt des Strichs (für Linien wichtig)
-  };
-
-  // Normalisierte Punkte für Dreiecke (0..1)
+  let snapState = { pointerStart: {x:0, y:0}, bounds: {x:0, y:0, w:0, h:0}, startPoint: {x:0, y:0} };
   let normalizedShapePoints = []; 
+
+  // === LASSO STATE ===
+  let lassoPath = []; // Punkte der Lasso-Linie
+  let isLassoSelecting = false; // User zeichnet gerade die Auswahl
+  let isLassoDragging = false;  // User verschiebt die Auswahl
+  let selectionImg = null;      // Der ausgeschnittene Canvas-Teil (Offscreen Canvas)
+  let selectionState = null;    // { x, y, w, h } Position der Auswahl
+  let dragOffset = {x:0, y:0};  // Wo wurde die Auswahl angefasst?
 
   // Canvas Refs
   let globalCanvas = null;
   let globalCtx = null;
+  let canvasSnapshot = null; // Speichert den Basis-Zustand (ohne schwebende Auswahl)
 
   // --- INIT ---
   const initCanvas = () => {
@@ -162,27 +161,42 @@ module.exports = `
     document.body.appendChild(globalCanvas);
     globalCtx = globalCanvas.getContext('2d', { willReadFrequently: true });
     
-    injectShapeButton();
-
+    injectButtons();
     resizeCanvas();
     attachEvents();
     initSlideMenu();
     setTimeout(checkTimer, 500);
   };
 
-  const injectShapeButton = () => {
+  const injectButtons = () => {
       const footer = document.getElementById('mps-footer');
-      if(!footer || document.getElementById('btn-shape-toggle')) return;
+      if(!footer) return;
 
-      const btn = document.createElement('button');
-      btn.id = 'btn-shape-toggle';
-      btn.className = 'mps-btn';
-      btn.innerText = 'Shapes: OFF';
-      btn.style.marginLeft = '10px';
-      btn.style.minWidth = '100px';
-      btn.onclick = toggleShapeDetection;
+      // 1. Lasso Button (vor dem Radierer einfügen oder danach)
+      if(!document.getElementById('btn-lasso')) {
+          const btnLasso = document.createElement('button');
+          btnLasso.className = 'mps-btn mps-tool btn-lasso';
+          btnLasso.innerHTML = '🤠'; // Cowboy Icon für Lasso
+          btnLasso.onclick = () => setMpsTool('lasso');
+          btnLasso.style.marginRight = '10px';
+          
+          // Einfügen vor dem Eraser (wir suchen den Eraser Button)
+          const eraserBtn = document.querySelector('.btn-era');
+          if(eraserBtn) footer.insertBefore(btnLasso, eraserBtn);
+          else footer.appendChild(btnLasso);
+      }
       
-      footer.insertBefore(btn, footer.lastElementChild);
+      // 2. Shape Toggle
+      if(!document.getElementById('btn-shape-toggle')) {
+          const btn = document.createElement('button');
+          btn.id = 'btn-shape-toggle';
+          btn.className = 'mps-btn';
+          btn.innerText = 'Shapes: OFF';
+          btn.style.marginLeft = '10px';
+          btn.style.minWidth = '100px';
+          btn.onclick = toggleShapeDetection;
+          footer.insertBefore(btn, footer.lastElementChild); // Vor Fullscreen
+      }
   };
 
   window.toggleShapeDetection = () => {
@@ -207,7 +221,7 @@ module.exports = `
   };
 
   const dist = (p1, p2) => Math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2);
-
+  
   const getBounds = (points) => {
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       points.forEach(p => {
@@ -216,12 +230,7 @@ module.exports = `
           if (p.x > maxX) maxX = p.x;
           if (p.y > maxY) maxY = p.y;
       });
-      return { 
-          x: minX, y: minY, 
-          w: maxX - minX, h: maxY - minY, 
-          centerX: minX + (maxX - minX)/2, centerY: minY + (maxY - minY)/2,
-          minX, minY, maxX, maxY
-      };
+      return { x: minX, y: minY, w: maxX - minX, h: maxY - minY, minX, minY, maxX, maxY, centerX: minX+(maxX-minX)/2, centerY: minY+(maxY-minY)/2 };
   };
 
   const getPolygonArea = (points) => {
@@ -234,76 +243,153 @@ module.exports = `
       return Math.abs(area) / 2;
   };
 
-  // --- RECOGNITION LOGIC ---
-  const analyzeShape = () => {
-      if (strokePoints.length < 5) return 'line';
+  // Point in Rect Check
+  const isPointInRect = (p, rect) => {
+      return p.x >= rect.x && p.x <= rect.x + rect.w && p.y >= rect.y && p.y <= rect.y + rect.h;
+  };
 
-      const start = strokePoints[0];
-      const end = strokePoints[strokePoints.length - 1];
-      const totalPathLen = strokePoints.reduce((acc, p, i) => i > 0 ? acc + dist(p, strokePoints[i-1]) : 0, 0);
-      const directDist = dist(start, end);
+  // --- LASSO LOGIC ---
 
-      // 1. LINIE: Immer aktiv (auch wenn Shapes OFF)
-      if (directDist > 0.85 * totalPathLen) return 'line';
+  // 1. Auswahl auf den Canvas "kleben" (Commit)
+  const commitSelection = () => {
+      if (!selectionImg || !selectionState) return;
+      
+      // Zeichne das schwebende Bild permanent auf den Main Canvas
+      globalCtx.drawImage(selectionImg, selectionState.x, selectionState.y);
+      
+      selectionImg = null;
+      selectionState = null;
+      lassoPath = [];
+      canvasSnapshot = null; // Snapshot veraltet
+  };
 
-      if (!useShapeDetection) return null;
+  // 2. Bereich ausschneiden (Lift)
+  const liftSelection = () => {
+      if (lassoPath.length < 3) return;
 
-      // 2. FORMEN
-      const bounds = getBounds(strokePoints);
-      const boxArea = bounds.w * bounds.h;
-      if (boxArea < 100) return 'line'; // Winzig -> Linie
+      const bounds = getBounds(lassoPath);
+      if (bounds.w < 5 || bounds.h < 5) return; // Zu klein
 
-      const area = getPolygonArea([...strokePoints, strokePoints[0]]);
-      const fillRatio = area / boxArea;
+      // Snapshot vom aktuellen Ganzen (wird zum Hintergrund)
+      const fullCanvasSnap = globalCtx.getImageData(0, 0, globalCanvas.width, globalCanvas.height);
 
-      // Rechteck: Füllt fast alles aus (> 80%)
-      if (fillRatio > 0.80) return 'rect';
+      // A. Offscreen Canvas für die Auswahl erstellen (Masking)
+      const selCanvas = document.createElement('canvas');
+      selCanvas.width = globalCanvas.width;
+      selCanvas.height = globalCanvas.height;
+      const selCtx = selCanvas.getContext('2d');
 
-      // Dreieck: Füllt ca. die Hälfte (< 60%)
-      if (fillRatio < 0.60) {
-          calculateTrianglePoints(bounds);
-          return 'triangle';
+      // Pfad auf Offscreen zeichnen
+      selCtx.beginPath();
+      selCtx.moveTo(lassoPath[0].x, lassoPath[0].y);
+      for (let i = 1; i < lassoPath.length; i++) selCtx.lineTo(lassoPath[i].x, lassoPath[i].y);
+      selCtx.closePath();
+      selCtx.fillStyle = '#000';
+      selCtx.fill();
+
+      // Source-In: Behält nur Pixel, wo der Pfad ist
+      selCtx.globalCompositeOperation = 'source-in';
+      selCtx.drawImage(globalCanvas, 0, 0);
+
+      // B. Auswahl zuschneiden auf Bounding Box (Performance & Handling)
+      const finalSelCanvas = document.createElement('canvas');
+      finalSelCanvas.width = bounds.w;
+      finalSelCanvas.height = bounds.h;
+      finalSelCanvas.getContext('2d').drawImage(selCanvas, bounds.x, bounds.y, bounds.w, bounds.h, 0, 0, bounds.w, bounds.h);
+      
+      selectionImg = finalSelCanvas;
+      selectionState = { x: bounds.x, y: bounds.y, w: bounds.w, h: bounds.h };
+
+      // C. Original löschen (Loch schneiden)
+      globalCtx.save();
+      globalCtx.beginPath();
+      globalCtx.moveTo(lassoPath[0].x, lassoPath[0].y);
+      for (let i = 1; i < lassoPath.length; i++) globalCtx.lineTo(lassoPath[i].x, lassoPath[i].y);
+      globalCtx.closePath();
+      globalCtx.globalCompositeOperation = 'destination-out';
+      globalCtx.fillStyle = '#000';
+      globalCtx.fill();
+      globalCtx.restore();
+
+      // D. Neuen Hintergrund-Snapshot speichern (mit Loch)
+      canvasSnapshot = globalCtx.getImageData(0, 0, globalCanvas.width, globalCanvas.height);
+
+      // E. Sofort rendern (damit man Auswahlrahmen sieht)
+      renderLassoOverlay();
+  };
+
+  const renderLassoOverlay = () => {
+      // 1. Hintergrund (mit Loch) wiederherstellen
+      if (canvasSnapshot) globalCtx.putImageData(canvasSnapshot, 0, 0);
+
+      // 2. Schwebende Auswahl zeichnen
+      if (selectionImg && selectionState) {
+          globalCtx.drawImage(selectionImg, selectionState.x, selectionState.y);
+          
+          // Rahmen zeichnen
+          globalCtx.save();
+          globalCtx.strokeStyle = '#3498db';
+          globalCtx.lineWidth = 2;
+          globalCtx.setLineDash([5, 5]);
+          globalCtx.strokeRect(selectionState.x, selectionState.y, selectionState.w, selectionState.h);
+          globalCtx.restore();
       }
 
-      // Kreis vs. unordentliches Rechteck (60% - 80%)
-      let radiusSum = 0;
-      const center = {x: bounds.centerX, y: bounds.centerY};
-      strokePoints.forEach(p => radiusSum += dist(p, center));
-      const avgRadius = radiusSum / strokePoints.length;
-      
-      let varianceSum = 0;
-      strokePoints.forEach(p => varianceSum += (dist(p, center) - avgRadius)**2);
-      const relativeVariance = Math.sqrt(varianceSum / strokePoints.length) / avgRadius;
+      // 3. Wenn gerade selektiert wird: Linie zeichnen
+      if (isLassoSelecting && lassoPath.length > 0) {
+          globalCtx.save();
+          globalCtx.beginPath();
+          globalCtx.strokeStyle = '#3498db';
+          globalCtx.lineWidth = 2;
+          globalCtx.setLineDash([5, 5]);
+          globalCtx.moveTo(lassoPath[0].x, lassoPath[0].y);
+          for(let i=1; i<lassoPath.length; i++) globalCtx.lineTo(lassoPath[i].x, lassoPath[i].y);
+          globalCtx.stroke();
+          globalCtx.restore();
+      }
+  };
 
-      // Kreise sind sehr rund (wenig Varianz)
-      if (relativeVariance < 0.22) return 'circle';
-      else return 'rect'; // Fallback
+
+  // --- SHAPE RECOGNITION LOGIC (Legacy support) ---
+  const analyzeShape = () => {
+      if (strokePoints.length < 5) return 'line';
+      const start = strokePoints[0];
+      const end = strokePoints[strokePoints.length - 1];
+      const totalLen = strokePoints.reduce((acc, p, i) => i > 0 ? acc + dist(p, strokePoints[i-1]) : 0, 0);
+      
+      if (dist(start, end) > 0.85 * totalLen) return 'line';
+      if (!useShapeDetection) return null;
+
+      const bounds = getBounds(strokePoints);
+      if ((bounds.w * bounds.h) < 100) return 'line';
+      
+      const fillRatio = getPolygonArea([...strokePoints, strokePoints[0]]) / (bounds.w * bounds.h);
+      if (fillRatio > 0.80) return 'rect';
+      if (fillRatio < 0.60) { calculateTrianglePoints(bounds); return 'triangle'; }
+      
+      // Circle detection
+      const center = {x: bounds.centerX, y: bounds.centerY};
+      let radiusSum = 0; strokePoints.forEach(p => radiusSum += dist(p, center));
+      const avgRad = radiusSum / strokePoints.length;
+      let varSum = 0; strokePoints.forEach(p => varSum += (dist(p, center) - avgRad)**2);
+      if ((Math.sqrt(varSum/strokePoints.length)/avgRad) < 0.22) return 'circle';
+      return 'rect';
   };
 
   const calculateTrianglePoints = (bounds) => {
-      // 3 Eckpunkte finden (weit entfernt vom Zentrum und voneinander)
       const center = {x: bounds.centerX, y: bounds.centerY};
       let pA = strokePoints[0], maxD = -1;
       strokePoints.forEach(p => { const d = dist(p, center); if(d>maxD){maxD=d; pA=p;} });
-      
-      let pB = pA; maxD = -1;
-      strokePoints.forEach(p => { const d = dist(p, pA); if(d>maxD){maxD=d; pB=p;} });
-      
+      let pB = pA; maxD = -1; strokePoints.forEach(p => { const d = dist(p, pA); if(d>maxD){maxD=d; pB=p;} });
       let pC = pA; maxD = -1;
       const distToLine = (p, l1, l2) => Math.abs((l2.x-l1.x)*(l1.y-p.y)-(l1.x-p.x)*(l2.y-l1.y))/dist(l1,l2);
       strokePoints.forEach(p => { const d = distToLine(p, pA, pB); if(d>maxD){maxD=d; pC=p;} });
-
-      // Speichern als relative Koordinaten (0.0 - 1.0)
       const norm = (p) => ({ x: (p.x - bounds.minX)/bounds.w, y: (p.y - bounds.minY)/bounds.h });
       normalizedShapePoints = [norm(pA), norm(pB), norm(pC)];
   };
 
-  // --- DRAWING SNAP ---
   const drawSnappedShape = (currentPos) => {
-      // Clean Canvas
       globalCtx.putImageData(canvasSnapshot, 0, 0);
-
-      // Style setup
       const dpr = window.devicePixelRatio || 1;
       globalCtx.lineWidth = penWidth * dpr;
       globalCtx.lineCap = 'round';
@@ -311,77 +397,38 @@ module.exports = `
       globalCtx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
       globalCtx.beginPath();
 
-      // === LOGIK: LINIE ===
-      // Linie verhält sich wie ein Gummiband vom Startpunkt zum aktuellen Stift
       if (detectedType === 'line') {
           globalCtx.moveTo(snapState.startPoint.x, snapState.startPoint.y);
           globalCtx.lineTo(currentPos.x, currentPos.y);
           globalCtx.stroke();
           return;
       }
-
-      // === LOGIK: GESCHLOSSENE FORMEN ===
-      // Wir nehmen die URSPRUNGS-BOUNDS und addieren die Bewegung der Maus (Delta)
-      // Das verhindert das "Zusammenfallen" auf Größe 0.
       
-      const deltaX = currentPos.x - snapState.pointerStart.x;
-      const deltaY = currentPos.y - snapState.pointerStart.y;
-
+      const dx = currentPos.x - snapState.pointerStart.x;
+      const dy = currentPos.y - snapState.pointerStart.y;
       let x = snapState.bounds.x;
       let y = snapState.bounds.y;
-      // Neue Breite/Höhe = Alte Breite + Mausbewegung
-      // Wir nutzen Math.max, um negative Größe zu verhindern (optional: man könnte auch flippen erlauben)
-      let w = snapState.bounds.w + deltaX;
-      let h = snapState.bounds.h + deltaY;
-      
-      // Flippen erlauben für natürliche Bedienung (wenn man nach links oben zieht)
-      // Canvas rect erlaubt negative Werte, aber ellipse mag das manchmal nicht.
-      
-      if (detectedType === 'rect') {
-          globalCtx.rect(x, y, w, h);
-      } 
-      else if (detectedType === 'circle') {
-          // Ellipse fitting
-          let cx = x + w/2;
-          let cy = y + h/2;
-          // Radius muss positiv sein für ellipse()
-          globalCtx.ellipse(cx, cy, Math.abs(w/2), Math.abs(h/2), 0, 0, 2 * Math.PI);
-      }
+      let w = snapState.bounds.w + dx;
+      let h = snapState.bounds.h + dy;
+
+      if (detectedType === 'rect') globalCtx.rect(x, y, w, h);
+      else if (detectedType === 'circle') globalCtx.ellipse(x+w/2, y+h/2, Math.abs(w/2), Math.abs(h/2), 0, 0, 2*Math.PI);
       else if (detectedType === 'triangle') {
-          // Dreieckpunkte relativ zur neuen Box berechnen
           const p1 = { x: x + normalizedShapePoints[0].x * w, y: y + normalizedShapePoints[0].y * h };
           const p2 = { x: x + normalizedShapePoints[1].x * w, y: y + normalizedShapePoints[1].y * h };
           const p3 = { x: x + normalizedShapePoints[2].x * w, y: y + normalizedShapePoints[2].y * h };
-          
-          globalCtx.moveTo(p1.x, p1.y);
-          globalCtx.lineTo(p2.x, p2.y);
-          globalCtx.lineTo(p3.x, p3.y);
-          globalCtx.closePath();
+          globalCtx.moveTo(p1.x, p1.y); globalCtx.lineTo(p2.x, p2.y); globalCtx.lineTo(p3.x, p3.y); globalCtx.closePath();
       }
-
       globalCtx.stroke();
   };
 
   const triggerSnap = () => {
-      if (!isDrawing || currentTool === 'eraser' || isSnapMode) return;
-
+      if (!isDrawing || currentTool === 'eraser' || isSnapMode || currentTool === 'lasso') return;
       const type = analyzeShape();
       if (!type) return;
-
-      detectedType = type;
-      isSnapMode = true;
-      
-      // Zustand einfrieren
-      const currentBounds = getBounds(strokePoints);
-      snapState = {
-          pointerStart: { ...lastPos }, // Kopie der Position
-          bounds: currentBounds,
-          startPoint: strokePoints[0]
-      };
-
+      detectedType = type; isSnapMode = true;
+      snapState = { pointerStart: { ...lastPos }, bounds: getBounds(strokePoints), startPoint: strokePoints[0] };
       if (navigator.vibrate) navigator.vibrate(20);
-      
-      // Sofort zeichnen (Initialposition = pointerStart, also Delta = 0 -> Originalgröße)
       drawSnappedShape(lastPos);
   };
 
@@ -392,17 +439,42 @@ module.exports = `
       if (e.cancelable) e.preventDefault();
       e.stopPropagation();
 
+      const p = getPos(e);
+      lastPos = p;
+
+      // === LASSO START LOGIK ===
+      if (currentTool === 'lasso') {
+          // Fall A: Klick IN bestehende Auswahl -> Verschieben starten
+          if (selectionState && isPointInRect(p, selectionState)) {
+              isLassoDragging = true;
+              dragOffset = { x: p.x - selectionState.x, y: p.y - selectionState.y };
+              activePointerId = e.pointerId;
+              return;
+          }
+          
+          // Fall B: Klick AUSSERHALB -> Auswahl committen (ablegen)
+          if (selectionState) {
+              commitSelection();
+              // Wir machen hier NICHT return, sondern starten direkt eine neue Auswahl
+          }
+
+          // Start neue Auswahl
+          isLassoSelecting = true;
+          lassoPath = [p];
+          // Snapshot für Overlay Rendering (zeigt aktuellen Canvas während Selektion)
+          canvasSnapshot = globalCtx.getImageData(0, 0, globalCanvas.width, globalCanvas.height);
+          activePointerId = e.pointerId;
+          return;
+      }
+
+      // === DRAWING START LOGIK ===
       if (isDrawing) return;
       isDrawing = true;
       activePointerId = e.pointerId;
       
-      const p = getPos(e);
-      lastPos = p;
       lastStablePos = p;
       strokePoints = [p];
-      
-      isSnapMode = false;
-      detectedType = null;
+      isSnapMode = false; detectedType = null;
 
       try { globalCanvas.setPointerCapture(e.pointerId); } catch(err){}
 
@@ -412,46 +484,44 @@ module.exports = `
       } else {
         canvasSnapshot = null;
       }
-
-      globalCtx.beginPath(); 
-      globalCtx.moveTo(p.x, p.y);
+      globalCtx.beginPath(); globalCtx.moveTo(p.x, p.y);
     };
     
     const move = (e) => {
-      if (currentTool === 'none' || !isDrawing) return;
+      if (currentTool === 'none') return;
       if (activePointerId !== e.pointerId) return;
       if (e.cancelable) e.preventDefault();
       e.stopPropagation();
-      
       const p = getPos(e);
       lastPos = p;
 
-      // 1. SNAP MODUS (Gummiband)
-      if (isSnapMode) {
-          drawSnappedShape(p);
+      // === LASSO MOVE ===
+      if (currentTool === 'lasso') {
+          if (isLassoDragging && selectionState) {
+              selectionState.x = p.x - dragOffset.x;
+              selectionState.y = p.y - dragOffset.y;
+              renderLassoOverlay();
+          } else if (isLassoSelecting) {
+              lassoPath.push(p);
+              renderLassoOverlay();
+          }
           return;
       }
 
-      // 2. NORMALES ZEICHNEN
-      strokePoints.push(p);
+      // === DRAWING MOVE ===
+      if (!isDrawing) return;
+      if (isSnapMode) { drawSnappedShape(p); return; }
 
-      globalCtx.lineCap = 'round'; 
-      globalCtx.lineJoin = 'round';
+      strokePoints.push(p);
+      globalCtx.lineCap = 'round'; globalCtx.lineJoin = 'round';
       const dpr = window.devicePixelRatio || 1;
       globalCtx.lineWidth = (currentTool === 'eraser' ? eraserWidth : penWidth) * dpr;
       globalCtx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
       globalCtx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
-      
-      globalCtx.lineTo(p.x, p.y); 
-      globalCtx.stroke();
+      globalCtx.lineTo(p.x, p.y); globalCtx.stroke();
 
-      // Timer Reset (Jitter Toleranz)
-      if (currentTool !== 'eraser') {
-          if (dist(p, lastStablePos) > JITTER_THRESHOLD) {
-              clearTimeout(shapeTimer);
-              shapeTimer = setTimeout(triggerSnap, HOLD_DELAY);
-              lastStablePos = p;
-          }
+      if (currentTool !== 'eraser' && dist(p, lastStablePos) > JITTER_THRESHOLD) {
+          clearTimeout(shapeTimer); shapeTimer = setTimeout(triggerSnap, HOLD_DELAY); lastStablePos = p;
       }
     };
     
@@ -460,13 +530,22 @@ module.exports = `
       if (e.cancelable) e.preventDefault();
       e.stopPropagation();
       
+      // === LASSO END ===
+      if (currentTool === 'lasso') {
+          if (isLassoSelecting) {
+              isLassoSelecting = false;
+              liftSelection(); // Versucht, den Bereich auszuschneiden
+          }
+          isLassoDragging = false;
+          activePointerId = null;
+          return;
+      }
+
+      // === DRAWING END ===
       isDrawing = false;
       activePointerId = null;
       if (shapeTimer) clearTimeout(shapeTimer);
-      
-      canvasSnapshot = null;
-      isSnapMode = false;
-
+      canvasSnapshot = null; isSnapMode = false;
       try { globalCanvas.releasePointerCapture(e.pointerId); } catch(err){}
     };
     
@@ -477,19 +556,57 @@ module.exports = `
     globalCanvas.addEventListener('touchstart', (e) => { if (currentTool !== 'none') e.preventDefault(); }, { passive: false });
   };
 
-  // --- STANDARD BOILERPLATE ---
-  const resizeCanvas = () => {
+  // --- UI API ---
+  window.setMpsTool = (t) => {
+    // Wenn wir Lasso verlassen und noch eine Auswahl schwebt -> Committen!
+    if (currentTool === 'lasso' && selectionImg) {
+        commitSelection();
+    }
+
+    currentTool = t;
+    isDrawing = false; isLassoSelecting = false; isLassoDragging = false;
+    activePointerId = null;
+    
     if (!globalCanvas) return;
-    const dpr = window.devicePixelRatio || 1;
-    const w = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-    const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    globalCanvas.width = Math.round(w * dpr);
-    globalCanvas.height = Math.round(h * dpr);
-    globalCanvas.style.width = w + 'px';
-    globalCanvas.style.height = h + 'px';
+    if (t === 'none') { globalCanvas.classList.remove('active'); globalCanvas.style.pointerEvents = 'none'; } 
+    else { globalCanvas.classList.add('active'); globalCanvas.style.pointerEvents = 'auto'; }
+    
+    document.querySelectorAll('.mps-tool').forEach(b => b.classList.remove('active'));
+    if (t === 'black') document.querySelector('.btn-blk')?.classList.add('active');
+    if (t === 'red') document.querySelector('.btn-red')?.classList.add('active');
+    if (t === 'green') document.querySelector('.btn-grn')?.classList.add('active');
+    if (t === 'eraser') document.querySelector('.btn-era')?.classList.add('active');
+    if (t === 'lasso') document.querySelector('.btn-lasso')?.classList.add('active');
   };
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeCanvas);
-  else window.addEventListener('resize', resizeCanvas);
+
+  // --- BOILERPLATE ---
+  window.toggleMenu = (id) => {
+    const el = document.getElementById(id);
+    const isVisible = el.style.display === 'flex';
+    document.querySelectorAll('.mps-popover').forEach(p => p.style.display = 'none');
+    if (!isVisible) el.style.display = 'flex';
+  };
+  window.setPenWidth = (w) => { penWidth = w; document.getElementById('menu-pen-size').style.display = 'none'; };
+  window.setEraserWidth = (w) => { eraserWidth = w; document.getElementById('menu-era-size').style.display = 'none'; };
+  window.clearVisibleSlide = () => { if (globalCtx) globalCtx.clearRect(0, 0, globalCanvas.width, globalCanvas.height); };
+  window.toggleMpsFS = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else if (document.exitFullscreen) document.exitFullscreen(); };
+  
+  const resizeCanvas = () => {
+      if (!globalCanvas) return;
+      const dpr = window.devicePixelRatio || 1;
+      const w = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+      const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      
+      // Beim Resizen bestehenden Inhalt retten
+      let temp;
+      try { temp = globalCtx.getImageData(0,0,globalCanvas.width, globalCanvas.height); } catch(e){}
+      
+      globalCanvas.width = Math.round(w * dpr); globalCanvas.height = Math.round(h * dpr);
+      globalCanvas.style.width = w + 'px'; globalCanvas.style.height = h + 'px';
+      
+      if(temp) globalCtx.putImageData(temp, 0, 0);
+  };
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeCanvas); else window.addEventListener('resize', resizeCanvas);
 
   const initSlideMenu = () => {
     const sections = document.querySelectorAll('section');
@@ -507,70 +624,31 @@ module.exports = `
     });
   };
 
-  window.setMpsTool = (t) => {
-    currentTool = t;
-    isDrawing = false;
-    activePointerId = null;
-    if (!globalCanvas) return;
-    if (t === 'none') { globalCanvas.classList.remove('active'); globalCanvas.style.pointerEvents = 'none'; } 
-    else { globalCanvas.classList.add('active'); globalCanvas.style.pointerEvents = 'auto'; }
-    
-    document.querySelectorAll('.mps-tool').forEach(b => b.classList.remove('active'));
-    if (t === 'black') document.querySelector('.btn-blk').classList.add('active');
-    if (t === 'red') document.querySelector('.btn-red').classList.add('active');
-    if (t === 'green') document.querySelector('.btn-grn').classList.add('active');
-    if (t === 'eraser') document.querySelector('.btn-era').classList.add('active');
-  };
-
-  window.toggleMenu = (id) => {
-    const el = document.getElementById(id);
-    const isVisible = el.style.display === 'flex';
-    document.querySelectorAll('.mps-popover').forEach(p => p.style.display = 'none');
-    if (!isVisible) el.style.display = 'flex';
-  };
-  
-  window.setPenWidth = (w) => { penWidth = w; document.getElementById('menu-pen-size').style.display = 'none'; };
-  window.setEraserWidth = (w) => { eraserWidth = w; document.getElementById('menu-era-size').style.display = 'none'; };
-  window.clearVisibleSlide = () => { if (globalCtx) globalCtx.clearRect(0, 0, globalCanvas.width, globalCanvas.height); };
-  window.toggleMpsFS = () => {
-    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-    else if (document.exitFullscreen) document.exitFullscreen();
-  };
   window.navigateSlide = (dir) => {
       const key = dir === 'next' ? 'ArrowRight' : 'ArrowLeft';
       document.dispatchEvent(new KeyboardEvent('keydown',{'key': key}));
       setTimeout(checkTimer, 100);
   }
 
-  // --- TIMER WIDGET ---
-  let timerInterval = null;
-  let remainingSeconds = 0;
-  let defaultSeconds = 0;
-  let isTimerRunning = false;
+  // --- TIMER ---
+  let timerInterval = null; let remainingSeconds = 0; let defaultSeconds = 0; let isTimerRunning = false;
   const updateTimerDisplay = () => {
-    const m = Math.floor(remainingSeconds / 60);
-    const s = remainingSeconds % 60;
+    const m = Math.floor(remainingSeconds / 60); const s = remainingSeconds % 60;
     const display = document.getElementById('mps-timer-display');
     if(display) {
         display.textContent = m.toString().padStart(2,'0') + ':' + s.toString().padStart(2,'0');
         document.getElementById('btn-timer-toggle').textContent = isTimerRunning ? '⏸' : '▶';
-        if (remainingSeconds <= 0 && !isTimerRunning && defaultSeconds > 0) display.classList.add('mps-timer-finished');
-        else display.classList.remove('mps-timer-finished');
+        if (remainingSeconds <= 0 && !isTimerRunning && defaultSeconds > 0) display.classList.add('mps-timer-finished'); else display.classList.remove('mps-timer-finished');
     }
   };
   const stopTimer = () => { if (timerInterval) clearInterval(timerInterval); isTimerRunning = false; updateTimerDisplay(); };
   const startTimer = () => {
-    if (isTimerRunning) return;
-    isTimerRunning = true;
-    updateTimerDisplay();
-    timerInterval = setInterval(() => {
-      if (remainingSeconds > 0) { remainingSeconds--; updateTimerDisplay(); } else { stopTimer(); const d = document.getElementById('mps-timer-display'); if(d) d.classList.add('mps-timer-finished'); }
-    }, 1000);
+    if (isTimerRunning) return; isTimerRunning = true; updateTimerDisplay();
+    timerInterval = setInterval(() => { if (remainingSeconds > 0) { remainingSeconds--; updateTimerDisplay(); } else { stopTimer(); const d = document.getElementById('mps-timer-display'); if(d) d.classList.add('mps-timer-finished'); } }, 1000);
   };
   window.timerToggle = () => isTimerRunning ? stopTimer() : startTimer();
   window.timerReset = () => { stopTimer(); remainingSeconds = defaultSeconds; const d = document.getElementById('mps-timer-display'); if(d) d.classList.remove('mps-timer-finished'); updateTimerDisplay(); };
   window.timerAdd = (mins) => { remainingSeconds += (mins * 60); updateTimerDisplay(); if(isTimerRunning) { const d = document.getElementById('mps-timer-display'); if(d) d.classList.remove('mps-timer-finished'); }};
-
   const checkTimer = () => {
     if (globalCanvas) globalCanvas.style.display = 'none';
     const hitElement = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
@@ -581,18 +659,15 @@ module.exports = `
     if (sec && sec.querySelector('[data-timer]')) {
       const val = sec.querySelector('[data-timer]').getAttribute('data-timer');
       let seconds = val.includes(':') ? (parseInt(val.split(':')[0]) * 60) + parseInt(val.split(':')[1]) : parseInt(val) * 60;
-      if (seconds !== defaultSeconds) { stopTimer(); defaultSeconds = seconds; remainingSeconds = seconds; widget.style.display = 'flex'; startTimer(); } 
-      else { widget.style.display = 'flex'; }
+      if (seconds !== defaultSeconds) { stopTimer(); defaultSeconds = seconds; remainingSeconds = seconds; widget.style.display = 'flex'; startTimer(); } else { widget.style.display = 'flex'; }
     } else { widget.style.display = 'none'; stopTimer(); }
   };
-
   window.addEventListener('hashchange', () => setTimeout(checkTimer, 100));
   window.addEventListener('popstate', () => setTimeout(checkTimer, 100));
   document.addEventListener('click', (e) => { if (!e.target.closest('#mps-footer')) document.querySelectorAll('.mps-popover').forEach(p => p.style.display = 'none'); });
   window.addEventListener('keyup', (e) => { if(['ArrowRight','ArrowLeft',' '].includes(e.key)) setTimeout(checkTimer, 100); });
   
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(initCanvas, 300));
-  else setTimeout(initCanvas, 300);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(initCanvas, 300)); else setTimeout(initCanvas, 300);
 })();
 </script>
 `;
