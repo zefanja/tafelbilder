@@ -358,3 +358,16 @@ E = 16
 <hr>
 
 **Zusatz: Buch S. 100 Nr. 18a; 21**
+
+---
+
+<div class="callout success">
+
+# Verständnisfrage
+Was denkst du?
+
+</div>
+
+* 3,13 ist größer als 3,1, weil 13 größer als 1 ist.
+* 0,40 und 0,04 und 0,4 sind gleich groß. Die Null nach dem Komma kann man weglassen.
+* Zum Ordnen von Dezimalzahlen müssen die Ziffern rechts vom Komma stellenweise verglichen werden.
