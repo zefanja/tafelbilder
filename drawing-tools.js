@@ -120,7 +120,7 @@ module.exports = `
   // === CONFIG ===
   let penWidth = 5;
   let eraserWidth = 30;
-  const HOLD_DELAY = 600;       // ms bis zum Einrasten
+  const HOLD_DELAY = 500;       // ms bis zum Einrasten (etwas schneller)
   const JITTER_THRESHOLD = 5;   // Pixel Toleranz
   
   // === STATE ===
@@ -131,16 +131,22 @@ module.exports = `
 
   // Shape Logic State
   let shapeTimer = null;
-  let isSnapMode = false;       // Modus, wenn Form erkannt wurde und man sie noch zieht
+  let isSnapMode = false;       // Modus: Form erkannt, User hält noch gedrückt
   let detectedType = null;      // 'line', 'rect', 'circle', 'triangle'
   
   let canvasSnapshot = null;    // Bild vor dem Strich
   let strokePoints = [];        // Alle Punkte des aktuellen Strichs
-  let startPos = {x:0, y:0};    // Startpunkt des Strichs
   let lastPos = {x:0, y:0};     // Aktuelle Mausposition
   let lastStablePos = {x:0, y:0}; 
 
-  // Speichert relative Punkte für komplexe Formen (Dreieck), um sie zu skalieren
+  // Speichert den Zustand ZUM ZEITPUNKT des Einrastens
+  let snapState = {
+      pointerStart: {x:0, y:0}, // Wo war die Maus beim Einrasten?
+      bounds: {x:0, y:0, w:0, h:0}, // Wie groß war die Kritzelei?
+      startPoint: {x:0, y:0}    // Startpunkt des Strichs (für Linien wichtig)
+  };
+
+  // Normalisierte Punkte für Dreiecke (0..1)
   let normalizedShapePoints = []; 
 
   // Canvas Refs
@@ -156,7 +162,6 @@ module.exports = `
     document.body.appendChild(globalCanvas);
     globalCtx = globalCanvas.getContext('2d', { willReadFrequently: true });
     
-    // Toggle Button in Footer einfügen
     injectShapeButton();
 
     resizeCanvas();
@@ -167,10 +172,7 @@ module.exports = `
 
   const injectShapeButton = () => {
       const footer = document.getElementById('mps-footer');
-      if(!footer) return;
-      
-      // Button erstellen, falls noch nicht da
-      if(document.getElementById('btn-shape-toggle')) return;
+      if(!footer || document.getElementById('btn-shape-toggle')) return;
 
       const btn = document.createElement('button');
       btn.id = 'btn-shape-toggle';
@@ -180,7 +182,6 @@ module.exports = `
       btn.style.minWidth = '100px';
       btn.onclick = toggleShapeDetection;
       
-      // Vor dem Fullscreen Button einfügen (letzter Button ist meist FS)
       footer.insertBefore(btn, footer.lastElementChild);
   };
 
@@ -216,13 +217,13 @@ module.exports = `
           if (p.y > maxY) maxY = p.y;
       });
       return { 
-          minX, minY, maxX, maxY, 
+          x: minX, y: minY, 
           w: maxX - minX, h: maxY - minY, 
-          centerX: minX + (maxX - minX)/2, centerY: minY + (maxY - minY)/2 
+          centerX: minX + (maxX - minX)/2, centerY: minY + (maxY - minY)/2,
+          minX, minY, maxX, maxY
       };
   };
 
-  // Shoelace Formula für Fläche eines beliebigen Polygons
   const getPolygonArea = (points) => {
       let area = 0;
       for (let i = 0; i < points.length; i++) {
@@ -242,39 +243,29 @@ module.exports = `
       const totalPathLen = strokePoints.reduce((acc, p, i) => i > 0 ? acc + dist(p, strokePoints[i-1]) : 0, 0);
       const directDist = dist(start, end);
 
-      // 1. LINIE: Wenn Anfang und Ende weit auseinander liegen im Vergleich zum Weg
-      // Dies ist immer aktiv, auch wenn ShapeDetection aus ist.
-      if (directDist > 0.85 * totalPathLen) {
-          return 'line';
-      }
+      // 1. LINIE: Immer aktiv (auch wenn Shapes OFF)
+      if (directDist > 0.85 * totalPathLen) return 'line';
 
-      // Wenn Shape Detection AUS ist, aber es keine Linie war -> Pech gehabt (bleibt Gekritzel)
       if (!useShapeDetection) return null;
 
-      // 2. FORMEN ANALYSE
+      // 2. FORMEN
       const bounds = getBounds(strokePoints);
       const boxArea = bounds.w * bounds.h;
-      if (boxArea < 100) return 'line'; // Zu klein -> Linie
+      if (boxArea < 100) return 'line'; // Winzig -> Linie
 
-      // "Füll-Grad": Wie viel der BoundingBox füllt das Gekritzel aus?
-      // Wir schließen den Pfad virtuell (Start zu Ende) für die Flächenberechnung
       const area = getPolygonArea([...strokePoints, strokePoints[0]]);
       const fillRatio = area / boxArea;
 
-      // RECHTECK / QUADRAT: Füllt die Box fast komplett (~1.0)
-      if (fillRatio > 0.82) {
-          return 'rect';
-      }
+      // Rechteck: Füllt fast alles aus (> 80%)
+      if (fillRatio > 0.80) return 'rect';
 
-      // DREIECK: Füllt die Box ca zur Hälfte (0.5)
+      // Dreieck: Füllt ca. die Hälfte (< 60%)
       if (fillRatio < 0.60) {
-          // Wir berechnen hier schonmal die Eckpunkte für späteres Rendering
           calculateTrianglePoints(bounds);
           return 'triangle';
       }
 
-      // KREIS vs UNORDENTLICHES RECHTECK (Bereich 0.60 - 0.82)
-      // Unterscheidung durch Varianz des Radius (Rundheit)
+      // Kreis vs. unordentliches Rechteck (60% - 80%)
       let radiusSum = 0;
       const center = {x: bounds.centerX, y: bounds.centerY};
       strokePoints.forEach(p => radiusSum += dist(p, center));
@@ -282,21 +273,15 @@ module.exports = `
       
       let varianceSum = 0;
       strokePoints.forEach(p => varianceSum += (dist(p, center) - avgRadius)**2);
-      const stdDev = Math.sqrt(varianceSum / strokePoints.length);
-      const relativeVariance = stdDev / avgRadius;
+      const relativeVariance = Math.sqrt(varianceSum / strokePoints.length) / avgRadius;
 
-      // Kreis hat geringe Varianz (< 0.20). Ein unordentliches Rechteck hat hohe Varianz (Ecken vs Kantenmitten)
+      // Kreise sind sehr rund (wenig Varianz)
       if (relativeVariance < 0.22) return 'circle';
-      else return 'rect'; // Wahrscheinlich ein krakeliges Rechteck
+      else return 'rect'; // Fallback
   };
 
-  // Hilfsfunktion: Findet die 3 besten Eckpunkte für ein Dreieck
   const calculateTrianglePoints = (bounds) => {
-      // Vereinfachung: Wir nehmen die Punkte, die am nächsten an den Ecken der Bounding Box liegen
-      // oder wir nutzen die Extrempunkte. Einfacherer Ansatz für Rubber-Banding:
-      // Wir speichern die 3 Eckpunkte relativ zur Bounding Box (0..1).
-      
-      // Algorithm: Finde Punkt A (weit weg von Center), B (weit weg von A), C (weit weg von AB)
+      // 3 Eckpunkte finden (weit entfernt vom Zentrum und voneinander)
       const center = {x: bounds.centerX, y: bounds.centerY};
       let pA = strokePoints[0], maxD = -1;
       strokePoints.forEach(p => { const d = dist(p, center); if(d>maxD){maxD=d; pA=p;} });
@@ -308,17 +293,17 @@ module.exports = `
       const distToLine = (p, l1, l2) => Math.abs((l2.x-l1.x)*(l1.y-p.y)-(l1.x-p.x)*(l2.y-l1.y))/dist(l1,l2);
       strokePoints.forEach(p => { const d = distToLine(p, pA, pB); if(d>maxD){maxD=d; pC=p;} });
 
-      // Normalisieren (0.0 bis 1.0 innerhalb der Bounds)
+      // Speichern als relative Koordinaten (0.0 - 1.0)
       const norm = (p) => ({ x: (p.x - bounds.minX)/bounds.w, y: (p.y - bounds.minY)/bounds.h });
       normalizedShapePoints = [norm(pA), norm(pB), norm(pC)];
   };
 
-  // --- DRAWING THE SNAPPED SHAPE ---
+  // --- DRAWING SNAP ---
   const drawSnappedShape = (currentPos) => {
-      // 1. Hintergrund wiederherstellen
+      // Clean Canvas
       globalCtx.putImageData(canvasSnapshot, 0, 0);
 
-      // 2. Style
+      // Style setup
       const dpr = window.devicePixelRatio || 1;
       globalCtx.lineWidth = penWidth * dpr;
       globalCtx.lineCap = 'round';
@@ -326,28 +311,44 @@ module.exports = `
       globalCtx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
       globalCtx.beginPath();
 
-      // Bounding Box definieren durch Startpunkt (Maus Down) und aktuellen Punkt (Maus Move)
-      const x = startPos.x;
-      const y = startPos.y;
-      const w = currentPos.x - startPos.x;
-      const h = currentPos.y - startPos.y;
-
+      // === LOGIK: LINIE ===
+      // Linie verhält sich wie ein Gummiband vom Startpunkt zum aktuellen Stift
       if (detectedType === 'line') {
-          globalCtx.moveTo(x, y);
+          globalCtx.moveTo(snapState.startPoint.x, snapState.startPoint.y);
           globalCtx.lineTo(currentPos.x, currentPos.y);
-      } 
-      else if (detectedType === 'rect') {
+          globalCtx.stroke();
+          return;
+      }
+
+      // === LOGIK: GESCHLOSSENE FORMEN ===
+      // Wir nehmen die URSPRUNGS-BOUNDS und addieren die Bewegung der Maus (Delta)
+      // Das verhindert das "Zusammenfallen" auf Größe 0.
+      
+      const deltaX = currentPos.x - snapState.pointerStart.x;
+      const deltaY = currentPos.y - snapState.pointerStart.y;
+
+      let x = snapState.bounds.x;
+      let y = snapState.bounds.y;
+      // Neue Breite/Höhe = Alte Breite + Mausbewegung
+      // Wir nutzen Math.max, um negative Größe zu verhindern (optional: man könnte auch flippen erlauben)
+      let w = snapState.bounds.w + deltaX;
+      let h = snapState.bounds.h + deltaY;
+      
+      // Flippen erlauben für natürliche Bedienung (wenn man nach links oben zieht)
+      // Canvas rect erlaubt negative Werte, aber ellipse mag das manchmal nicht.
+      
+      if (detectedType === 'rect') {
           globalCtx.rect(x, y, w, h);
       } 
       else if (detectedType === 'circle') {
-          // Ellipse fitting in the box defined by drag
-          const centerX = x + w/2;
-          const centerY = y + h/2;
-          // Math.abs, damit Radien positiv sind
-          globalCtx.ellipse(centerX, centerY, Math.abs(w/2), Math.abs(h/2), 0, 0, 2 * Math.PI);
+          // Ellipse fitting
+          let cx = x + w/2;
+          let cy = y + h/2;
+          // Radius muss positiv sein für ellipse()
+          globalCtx.ellipse(cx, cy, Math.abs(w/2), Math.abs(h/2), 0, 0, 2 * Math.PI);
       }
       else if (detectedType === 'triangle') {
-          // Dreieck basierend auf den normalisierten Punkten skalieren
+          // Dreieckpunkte relativ zur neuen Box berechnen
           const p1 = { x: x + normalizedShapePoints[0].x * w, y: y + normalizedShapePoints[0].y * h };
           const p2 = { x: x + normalizedShapePoints[1].x * w, y: y + normalizedShapePoints[1].y * h };
           const p3 = { x: x + normalizedShapePoints[2].x * w, y: y + normalizedShapePoints[2].y * h };
@@ -365,15 +366,22 @@ module.exports = `
       if (!isDrawing || currentTool === 'eraser' || isSnapMode) return;
 
       const type = analyzeShape();
-      if (!type) return; // Nichts erkannt (oder Shapes disabled und keine Linie)
+      if (!type) return;
 
       detectedType = type;
       isSnapMode = true;
       
-      // Haptic Feedback
+      // Zustand einfrieren
+      const currentBounds = getBounds(strokePoints);
+      snapState = {
+          pointerStart: { ...lastPos }, // Kopie der Position
+          bounds: currentBounds,
+          startPoint: strokePoints[0]
+      };
+
       if (navigator.vibrate) navigator.vibrate(20);
       
-      // Zeichne sofort mit aktueller Position
+      // Sofort zeichnen (Initialposition = pointerStart, also Delta = 0 -> Originalgröße)
       drawSnappedShape(lastPos);
   };
 
@@ -389,7 +397,6 @@ module.exports = `
       activePointerId = e.pointerId;
       
       const p = getPos(e);
-      startPos = p;
       lastPos = p;
       lastStablePos = p;
       strokePoints = [p];
@@ -419,13 +426,13 @@ module.exports = `
       const p = getPos(e);
       lastPos = p;
 
-      // === MODUS: FORM ZIEHEN / GUMMIBAND ===
+      // 1. SNAP MODUS (Gummiband)
       if (isSnapMode) {
           drawSnappedShape(p);
           return;
       }
 
-      // === MODUS: NORMALES ZEICHNEN ===
+      // 2. NORMALES ZEICHNEN
       strokePoints.push(p);
 
       globalCtx.lineCap = 'round'; 
@@ -438,7 +445,7 @@ module.exports = `
       globalCtx.lineTo(p.x, p.y); 
       globalCtx.stroke();
 
-      // Timer Reset bei zu viel Bewegung (Jitter)
+      // Timer Reset (Jitter Toleranz)
       if (currentTool !== 'eraser') {
           if (dist(p, lastStablePos) > JITTER_THRESHOLD) {
               clearTimeout(shapeTimer);
@@ -470,7 +477,7 @@ module.exports = `
     globalCanvas.addEventListener('touchstart', (e) => { if (currentTool !== 'none') e.preventDefault(); }, { passive: false });
   };
 
-  // --- STANDARD BOILERPLATE (Resize, UI, Menu) ---
+  // --- STANDARD BOILERPLATE ---
   const resizeCanvas = () => {
     if (!globalCanvas) return;
     const dpr = window.devicePixelRatio || 1;
