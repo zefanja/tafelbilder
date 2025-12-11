@@ -369,6 +369,32 @@ Vergleiche mit deinem Partner
 **Buch S. 102 Nr. 4; 5; 7; 8**
 <hr>
 
-**Zusatz: Buch S. 102 Nr. 6; 9**
+**Zusatz: Buch S. 102 Nr. 6; S. 103 Nr. 9**
+
+<span data-timer="20:00"></span>
+
+---
+
+<div class="callout success">
+
+# Übungsphase
+👥 Mit eurem Partner!
+
+</div>
+
+* ## **Buch S. 103 Nr. 11**
+
+---
+
+<div class="callout success">
+
+  # Übungsphase 2
+  In euren Heftern!
+</div>
+
+**Buch S. 103 Nr. 9, 12**
+<hr>
+
+**Zusatz: Buch S. 103 Nr. 14**
 
 <span data-timer="20:00"></span>
