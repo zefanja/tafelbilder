@@ -121,6 +121,15 @@ module.exports = `
   let activePointerId = null;
   let isDrawing = false;
   
+  // === NEU: Variablen für Straight-Line Feature ===
+  let straightLineTimer = null;
+  let isStraightMode = false;
+  let canvasSnapshot = null; // Speichert das Bild vor dem aktuellen Strich
+  let strokeStartPos = null; // Startpunkt des Strichs
+  let lastPointerPos = null; // Aktuelle Position für den Timer-Callback
+  const STRAIGHT_DELAY = 600; // ms bis zur Begradigung
+  // ================================================
+
   let penWidth = 5;
   let eraserWidth = 30;
   
@@ -136,11 +145,11 @@ module.exports = `
     globalCanvas.id = 'mps-global-canvas';
     document.body.appendChild(globalCanvas);
     
-    globalCtx = globalCanvas.getContext('2d', { willReadFrequently: false });
+    globalCtx = globalCanvas.getContext('2d', { willReadFrequently: true }); // Optimized for read (snapshot)
     
     resizeCanvas();
     attachEvents();
-    initSlideMenu(); // Menü aufbauen
+    initSlideMenu();
     
     setTimeout(checkTimer, 500);
   };
@@ -151,11 +160,10 @@ module.exports = `
     const menu = document.getElementById('menu-slide-nav');
     if(!menu) return;
     
-    menu.innerHTML = ''; // Reset
+    menu.innerHTML = ''; 
     
     sections.forEach((sec, idx) => {
        const slideNum = idx + 1;
-       // Titel suchen: Erst data-title, dann h1, dann h2, sonst Fallback
        let title = sec.getAttribute('data-title');
        if (!title) {
            const h1 = sec.querySelector('h1');
@@ -166,17 +174,13 @@ module.exports = `
            }
        }
        if (!title) title = 'Folie ' + slideNum;
-       
-       // Zu langen Text kürzen für Anzeige
        if(title.length > 25) title = title.substring(0, 25) + '...';
 
        const btn = document.createElement('button');
        btn.innerText = slideNum + '. ' + title;
        btn.onclick = () => {
-           // Hash Navigation (funktioniert bei Marp/Reveal meistens)
            window.location.hash = slideNum;
            toggleMenu('menu-slide-nav');
-           // Timer-Check erzwingen
            setTimeout(checkTimer, 200);
        };
        menu.appendChild(btn);
@@ -217,6 +221,36 @@ module.exports = `
     return { x: cx * dpr, y: cy * dpr };
   };
 
+  // === NEU: Hilfsfunktion zum Zeichnen der geraden Linie ===
+  const drawStraightLine = (toPos) => {
+      if (!canvasSnapshot || !strokeStartPos) return;
+      
+      // 1. Canvas zurücksetzen (Freihand-Strich löschen)
+      globalCtx.putImageData(canvasSnapshot, 0, 0);
+      
+      // 2. Gerade Linie zeichnen
+      globalCtx.beginPath();
+      globalCtx.moveTo(strokeStartPos.x, strokeStartPos.y);
+      globalCtx.lineCap = 'round';
+      globalCtx.lineJoin = 'round';
+      const dpr = window.devicePixelRatio || 1;
+      globalCtx.lineWidth = penWidth * dpr;
+      globalCtx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
+      globalCtx.lineTo(toPos.x, toPos.y);
+      globalCtx.stroke();
+  };
+
+  // === NEU: Timer Trigger Funktion ===
+  const triggerStraightMode = () => {
+      if (!isDrawing || currentTool === 'eraser' || isStraightMode) return;
+      
+      isStraightMode = true;
+      // Kurzes Haptic Feedback (vibriert auf mobilen Geräten)
+      if (navigator.vibrate) navigator.vibrate(20);
+      
+      drawStraightLine(lastPointerPos);
+  };
+
   const attachEvents = () => {
     const start = (e) => {
       if (currentTool === 'none') return;
@@ -228,6 +262,19 @@ module.exports = `
       activePointerId = e.pointerId;
       
       const p = getPos(e);
+      strokeStartPos = p; // Startpunkt merken
+      lastPointerPos = p;
+      isStraightMode = false; // Reset
+
+      // Snapshot machen (nur wenn nicht Radierer, spart Performance)
+      if (currentTool !== 'eraser') {
+        canvasSnapshot = globalCtx.getImageData(0, 0, globalCanvas.width, globalCanvas.height);
+        // Timer starten: Wenn User stillhält, wird es gerade
+        straightLineTimer = setTimeout(triggerStraightMode, STRAIGHT_DELAY);
+      } else {
+        canvasSnapshot = null;
+      }
+
       globalCtx.beginPath(); 
       globalCtx.moveTo(p.x, p.y);
       
@@ -247,23 +294,45 @@ module.exports = `
       e.stopPropagation();
       
       const p = getPos(e);
-      globalCtx.lineCap = 'round'; 
-      globalCtx.lineJoin = 'round';
-      const dpr = window.devicePixelRatio || 1;
-      globalCtx.lineWidth = (currentTool === 'eraser' ? eraserWidth : penWidth) * dpr;
-      globalCtx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
-      globalCtx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
-      
-      globalCtx.lineTo(p.x, p.y); 
-      globalCtx.stroke();
+      lastPointerPos = p;
+
+      // === LOGIK: Gerade Linie vs. Freihand ===
+      if (isStraightMode) {
+          // Wir sind im "Rubber-Band" Modus -> Linie aktualisieren
+          drawStraightLine(p);
+      } else {
+          // Normales Zeichnen
+          globalCtx.lineCap = 'round'; 
+          globalCtx.lineJoin = 'round';
+          const dpr = window.devicePixelRatio || 1;
+          globalCtx.lineWidth = (currentTool === 'eraser' ? eraserWidth : penWidth) * dpr;
+          globalCtx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
+          globalCtx.strokeStyle = currentTool === 'black' ? '#2c3e50' : currentTool;
+          
+          globalCtx.lineTo(p.x, p.y); 
+          globalCtx.stroke();
+
+          // Timer Reset (Debounce): Nur wenn man "anhält", wird begradigt
+          if (currentTool !== 'eraser') {
+              if (straightLineTimer) clearTimeout(straightLineTimer);
+              straightLineTimer = setTimeout(triggerStraightMode, STRAIGHT_DELAY);
+          }
+      }
     };
     
     const end = (e) => { 
       if (activePointerId !== e.pointerId) return;
       if (e.cancelable) e.preventDefault();
       e.stopPropagation();
+      
       isDrawing = false;
       activePointerId = null;
+      
+      // Aufräumen
+      if (straightLineTimer) clearTimeout(straightLineTimer);
+      canvasSnapshot = null;
+      isStraightMode = false;
+
       try { 
         if (globalCanvas.hasPointerCapture && globalCanvas.hasPointerCapture(e.pointerId)) {
           globalCanvas.releasePointerCapture(e.pointerId); 
@@ -368,7 +437,7 @@ module.exports = `
   window.timerAdd = (mins) => { remainingSeconds += (mins * 60); updateTimerDisplay(); if(isTimerRunning) { const d = document.getElementById('mps-timer-display'); if(d) d.classList.remove('mps-timer-finished'); }};
 
   const checkTimer = () => {
-    if (globalCanvas) globalCanvas.style.display = 'none'; // Hack für elementFromPoint
+    if (globalCanvas) globalCanvas.style.display = 'none';
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
     const hitElement = document.elementFromPoint(centerX, centerY);

@@ -349,6 +349,27 @@ E = 16
 
 <div class="callout success">
 
+  # Dezimalzahlen darstellen
+  Bsp: Markiere die Zahlen auf einem Zahlenstrahl
+</div>
+
+* a) 0,3 und 0,5
+
+<br><br>
+
+* b) 0,7 und 1,6
+
+<br><br>
+
+* c) 14,82 und 14,89
+
+
+
+
+---
+
+<div class="callout success">
+
   # Übungsphase
   In euren Heftern!
 </div>

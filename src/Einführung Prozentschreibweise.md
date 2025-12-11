@@ -371,4 +371,4 @@ Vergleiche mit deinem Partner
 
 **Zusatz: Buch S. 102 Nr. 6; 9**
 
-<span data-timer="15:00"></span>
+<span data-timer="20:00"></span>
