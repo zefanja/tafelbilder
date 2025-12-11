@@ -140,17 +140,17 @@ module.exports = `
   let normalizedShapePoints = []; 
 
   // === LASSO STATE ===
-  let lassoPath = []; // Punkte der Lasso-Linie
-  let isLassoSelecting = false; // User zeichnet gerade die Auswahl
-  let isLassoDragging = false;  // User verschiebt die Auswahl
-  let selectionImg = null;      // Der ausgeschnittene Canvas-Teil (Offscreen Canvas)
-  let selectionState = null;    // { x, y, w, h } Position der Auswahl
-  let dragOffset = {x:0, y:0};  // Wo wurde die Auswahl angefasst?
+  let lassoPath = []; 
+  let isLassoSelecting = false; 
+  let isLassoDragging = false;  
+  let selectionImg = null;      
+  let selectionState = null;    
+  let dragOffset = {x:0, y:0};  
 
   // Canvas Refs
   let globalCanvas = null;
   let globalCtx = null;
-  let canvasSnapshot = null; // Speichert den Basis-Zustand (ohne schwebende Auswahl)
+  let canvasSnapshot = null; 
 
   // --- INIT ---
   const initCanvas = () => {
@@ -172,21 +172,19 @@ module.exports = `
       const footer = document.getElementById('mps-footer');
       if(!footer) return;
 
-      // 1. Lasso Button (vor dem Radierer einfügen oder danach)
+      // Lasso Button
       if(!document.getElementById('btn-lasso')) {
           const btnLasso = document.createElement('button');
           btnLasso.className = 'mps-btn mps-tool btn-lasso';
-          btnLasso.innerHTML = '🤠'; // Cowboy Icon für Lasso
+          btnLasso.innerHTML = '🤠'; 
           btnLasso.onclick = () => setMpsTool('lasso');
           btnLasso.style.marginRight = '10px';
-          
-          // Einfügen vor dem Eraser (wir suchen den Eraser Button)
           const eraserBtn = document.querySelector('.btn-era');
           if(eraserBtn) footer.insertBefore(btnLasso, eraserBtn);
           else footer.appendChild(btnLasso);
       }
       
-      // 2. Shape Toggle
+      // Shape Toggle
       if(!document.getElementById('btn-shape-toggle')) {
           const btn = document.createElement('button');
           btn.id = 'btn-shape-toggle';
@@ -195,7 +193,7 @@ module.exports = `
           btn.style.marginLeft = '10px';
           btn.style.minWidth = '100px';
           btn.onclick = toggleShapeDetection;
-          footer.insertBefore(btn, footer.lastElementChild); // Vor Fullscreen
+          footer.insertBefore(btn, footer.lastElementChild);
       }
   };
 
@@ -243,43 +241,39 @@ module.exports = `
       return Math.abs(area) / 2;
   };
 
-  // Point in Rect Check
   const isPointInRect = (p, rect) => {
       return p.x >= rect.x && p.x <= rect.x + rect.w && p.y >= rect.y && p.y <= rect.y + rect.h;
   };
 
-  // --- LASSO LOGIC ---
+  // --- LASSO LOGIC (FIXED) ---
 
-  // 1. Auswahl auf den Canvas "kleben" (Commit)
   const commitSelection = () => {
       if (!selectionImg || !selectionState) return;
       
-      // Zeichne das schwebende Bild permanent auf den Main Canvas
+      // === FIX: Zuerst den sauberen Hintergrund (ohne Striche) wiederherstellen ===
+      if (canvasSnapshot) globalCtx.putImageData(canvasSnapshot, 0, 0);
+      
+      // Dann das Bild final einbrennen
       globalCtx.drawImage(selectionImg, selectionState.x, selectionState.y);
       
       selectionImg = null;
       selectionState = null;
       lassoPath = [];
-      canvasSnapshot = null; // Snapshot veraltet
+      canvasSnapshot = null;
   };
 
-  // 2. Bereich ausschneiden (Lift)
   const liftSelection = () => {
       if (lassoPath.length < 3) return;
 
       const bounds = getBounds(lassoPath);
-      if (bounds.w < 5 || bounds.h < 5) return; // Zu klein
+      if (bounds.w < 5 || bounds.h < 5) return; 
 
-      // Snapshot vom aktuellen Ganzen (wird zum Hintergrund)
-      const fullCanvasSnap = globalCtx.getImageData(0, 0, globalCanvas.width, globalCanvas.height);
-
-      // A. Offscreen Canvas für die Auswahl erstellen (Masking)
+      // Offscreen Canvas logic
       const selCanvas = document.createElement('canvas');
       selCanvas.width = globalCanvas.width;
       selCanvas.height = globalCanvas.height;
       const selCtx = selCanvas.getContext('2d');
 
-      // Pfad auf Offscreen zeichnen
       selCtx.beginPath();
       selCtx.moveTo(lassoPath[0].x, lassoPath[0].y);
       for (let i = 1; i < lassoPath.length; i++) selCtx.lineTo(lassoPath[i].x, lassoPath[i].y);
@@ -287,11 +281,9 @@ module.exports = `
       selCtx.fillStyle = '#000';
       selCtx.fill();
 
-      // Source-In: Behält nur Pixel, wo der Pfad ist
       selCtx.globalCompositeOperation = 'source-in';
       selCtx.drawImage(globalCanvas, 0, 0);
 
-      // B. Auswahl zuschneiden auf Bounding Box (Performance & Handling)
       const finalSelCanvas = document.createElement('canvas');
       finalSelCanvas.width = bounds.w;
       finalSelCanvas.height = bounds.h;
@@ -300,7 +292,7 @@ module.exports = `
       selectionImg = finalSelCanvas;
       selectionState = { x: bounds.x, y: bounds.y, w: bounds.w, h: bounds.h };
 
-      // C. Original löschen (Loch schneiden)
+      // Cut out from original
       globalCtx.save();
       globalCtx.beginPath();
       globalCtx.moveTo(lassoPath[0].x, lassoPath[0].y);
@@ -311,22 +303,18 @@ module.exports = `
       globalCtx.fill();
       globalCtx.restore();
 
-      // D. Neuen Hintergrund-Snapshot speichern (mit Loch)
+      // Neuer Snapshot MIT LOCH, aber OHNE LINIEN
       canvasSnapshot = globalCtx.getImageData(0, 0, globalCanvas.width, globalCanvas.height);
 
-      // E. Sofort rendern (damit man Auswahlrahmen sieht)
       renderLassoOverlay();
   };
 
   const renderLassoOverlay = () => {
-      // 1. Hintergrund (mit Loch) wiederherstellen
       if (canvasSnapshot) globalCtx.putImageData(canvasSnapshot, 0, 0);
 
-      // 2. Schwebende Auswahl zeichnen
       if (selectionImg && selectionState) {
           globalCtx.drawImage(selectionImg, selectionState.x, selectionState.y);
           
-          // Rahmen zeichnen
           globalCtx.save();
           globalCtx.strokeStyle = '#3498db';
           globalCtx.lineWidth = 2;
@@ -335,7 +323,6 @@ module.exports = `
           globalCtx.restore();
       }
 
-      // 3. Wenn gerade selektiert wird: Linie zeichnen
       if (isLassoSelecting && lassoPath.length > 0) {
           globalCtx.save();
           globalCtx.beginPath();
@@ -349,8 +336,7 @@ module.exports = `
       }
   };
 
-
-  // --- SHAPE RECOGNITION LOGIC (Legacy support) ---
+  // --- SHAPE RECOGNITION LOGIC ---
   const analyzeShape = () => {
       if (strokePoints.length < 5) return 'line';
       const start = strokePoints[0];
@@ -367,7 +353,6 @@ module.exports = `
       if (fillRatio > 0.80) return 'rect';
       if (fillRatio < 0.60) { calculateTrianglePoints(bounds); return 'triangle'; }
       
-      // Circle detection
       const center = {x: bounds.centerX, y: bounds.centerY};
       let radiusSum = 0; strokePoints.forEach(p => radiusSum += dist(p, center));
       const avgRad = radiusSum / strokePoints.length;
@@ -442,36 +427,28 @@ module.exports = `
       const p = getPos(e);
       lastPos = p;
 
-      // === LASSO START LOGIK ===
+      // === LASSO START ===
       if (currentTool === 'lasso') {
-          // Fall A: Klick IN bestehende Auswahl -> Verschieben starten
           if (selectionState && isPointInRect(p, selectionState)) {
               isLassoDragging = true;
               dragOffset = { x: p.x - selectionState.x, y: p.y - selectionState.y };
               activePointerId = e.pointerId;
               return;
           }
-          
-          // Fall B: Klick AUSSERHALB -> Auswahl committen (ablegen)
           if (selectionState) {
               commitSelection();
-              // Wir machen hier NICHT return, sondern starten direkt eine neue Auswahl
           }
-
-          // Start neue Auswahl
           isLassoSelecting = true;
           lassoPath = [p];
-          // Snapshot für Overlay Rendering (zeigt aktuellen Canvas während Selektion)
           canvasSnapshot = globalCtx.getImageData(0, 0, globalCanvas.width, globalCanvas.height);
           activePointerId = e.pointerId;
           return;
       }
 
-      // === DRAWING START LOGIK ===
+      // === DRAWING START ===
       if (isDrawing) return;
       isDrawing = true;
       activePointerId = e.pointerId;
-      
       lastStablePos = p;
       strokePoints = [p];
       isSnapMode = false; detectedType = null;
@@ -530,18 +507,16 @@ module.exports = `
       if (e.cancelable) e.preventDefault();
       e.stopPropagation();
       
-      // === LASSO END ===
       if (currentTool === 'lasso') {
           if (isLassoSelecting) {
               isLassoSelecting = false;
-              liftSelection(); // Versucht, den Bereich auszuschneiden
+              liftSelection(); 
           }
           isLassoDragging = false;
           activePointerId = null;
           return;
       }
 
-      // === DRAWING END ===
       isDrawing = false;
       activePointerId = null;
       if (shapeTimer) clearTimeout(shapeTimer);
@@ -558,7 +533,7 @@ module.exports = `
 
   // --- UI API ---
   window.setMpsTool = (t) => {
-    // Wenn wir Lasso verlassen und noch eine Auswahl schwebt -> Committen!
+    // Falls noch Lasso-Auswahl aktiv, festkleben
     if (currentTool === 'lasso' && selectionImg) {
         commitSelection();
     }
@@ -596,14 +571,9 @@ module.exports = `
       const dpr = window.devicePixelRatio || 1;
       const w = window.visualViewport ? window.visualViewport.width : window.innerWidth;
       const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-      
-      // Beim Resizen bestehenden Inhalt retten
-      let temp;
-      try { temp = globalCtx.getImageData(0,0,globalCanvas.width, globalCanvas.height); } catch(e){}
-      
+      let temp; try { temp = globalCtx.getImageData(0,0,globalCanvas.width, globalCanvas.height); } catch(e){}
       globalCanvas.width = Math.round(w * dpr); globalCanvas.height = Math.round(h * dpr);
       globalCanvas.style.width = w + 'px'; globalCanvas.style.height = h + 'px';
-      
       if(temp) globalCtx.putImageData(temp, 0, 0);
   };
   if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeCanvas); else window.addEventListener('resize', resizeCanvas);
