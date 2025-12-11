@@ -172,7 +172,7 @@ Wenn der Nenner 100 ist, wird der **Zähler** zur Prozentzahl.
 
 * $\frac{29}{100} =$ ++$29\%$++
 
-* $\frac{5}{100} =$ ++$5\%$++ *(Nicht 50%!)*
+* $\frac{5}{100} =$ ++$5\%$ *(Nicht 50%!)*++
 
 ---
 
