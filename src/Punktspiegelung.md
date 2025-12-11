@@ -83,20 +83,24 @@ Zeigt mir eure Whiteboards!
 <div>
 
 * a) Quadrat $\rightarrow$ ++**Ja**++
+![h:300](assets/image-18.png)
 
 <br>
 
 * b) Buchstabe **S** $\rightarrow$ ++**Ja**++
+![h:300](assets/image-11.png)
 
 </div>
 
 <div>
 
 * c) Dreieck (gleichsch.) $\rightarrow$ ++Nein++
+![h:300](assets/image-17.png)
 
 <br>
 
 * d) Kreis $\rightarrow$ ++**Ja**++
+* ![h:300](assets/image-16.png)
 
 </div>
 
@@ -117,16 +121,16 @@ Entscheidung: Punktsymmetrisch? (Ja / Nein)
 
 <div>
 
-* a) Ja
-* b) Nein
-* c) Nein
+* a) ++Ja++
+* b) ++Nein++
+* c) ++Nein++
 
 </div>
 
 <div>
 
-* d) Ja
-* e) Nein
+* d) ++Ja++
+* e) ++Nein++
 
 </div>
 
@@ -226,6 +230,6 @@ Eine Figur ist **punktsymmetrisch**, wenn sie durch eine halbe Drehung auf sich 
 📘 In euren Heftern!
 </div>
 
-* ## **Buch S. 157 Nr. 4; 5; 7**
+* ## Buch S. 157 Nr. 4; 5; 7
 
 <span data-timer="20:00"></span>
