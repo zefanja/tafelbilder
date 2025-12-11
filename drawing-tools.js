@@ -150,6 +150,9 @@ module.exports = `
   // Canvas Refs
   let globalCanvas = null;
   let globalCtx = null;
+  
+  // WICHTIG: canvasSnapshot speichert immer den "sauberen" Hintergrund
+  // (ohne Hilfslinien, ohne schwebende Auswahl, ggf. mit Loch)
   let canvasSnapshot = null; 
 
   // --- INIT ---
@@ -250,15 +253,16 @@ module.exports = `
   const commitSelection = () => {
       if (!selectionImg || !selectionState) return;
       
-      // === FIX: Zuerst den sauberen Hintergrund (ohne Striche) wiederherstellen ===
+      // 1. Hintergrund OHNE Linien wiederherstellen (das ist der Snapshot mit dem Loch)
       if (canvasSnapshot) globalCtx.putImageData(canvasSnapshot, 0, 0);
       
-      // Dann das Bild final einbrennen
+      // 2. Bild an neuer Position einfügen
       globalCtx.drawImage(selectionImg, selectionState.x, selectionState.y);
       
       selectionImg = null;
       selectionState = null;
       lassoPath = [];
+      // 3. CanvasSnapshot ist jetzt veraltet (wir brauchen später einen neuen vom neuen Gesamtbild)
       canvasSnapshot = null;
   };
 
@@ -268,12 +272,19 @@ module.exports = `
       const bounds = getBounds(lassoPath);
       if (bounds.w < 5 || bounds.h < 5) return; 
 
-      // Offscreen Canvas logic
+      // === CRITICAL FIX: Zuerst den sauberen Originalzustand (vor dem Zeichnen der Linie) laden ===
+      // Damit verschwindet die gestrichelte Linie vom Canvas, BEVOR wir den Screenshot machen
+      if (canvasSnapshot) globalCtx.putImageData(canvasSnapshot, 0, 0);
+
+      // --- Ab hier arbeiten wir auf einem sauberen Canvas ohne Hilfslinien ---
+
+      // A. Offscreen Canvas für die Maske
       const selCanvas = document.createElement('canvas');
       selCanvas.width = globalCanvas.width;
       selCanvas.height = globalCanvas.height;
       const selCtx = selCanvas.getContext('2d');
 
+      // Pfad auf Offscreen zeichnen
       selCtx.beginPath();
       selCtx.moveTo(lassoPath[0].x, lassoPath[0].y);
       for (let i = 1; i < lassoPath.length; i++) selCtx.lineTo(lassoPath[i].x, lassoPath[i].y);
@@ -281,9 +292,11 @@ module.exports = `
       selCtx.fillStyle = '#000';
       selCtx.fill();
 
+      // "Source-In": Nur das behalten, was innerhalb der Maske liegt
       selCtx.globalCompositeOperation = 'source-in';
-      selCtx.drawImage(globalCanvas, 0, 0);
+      selCtx.drawImage(globalCanvas, 0, 0); // Hier wird vom sauberen GlobalCanvas kopiert
 
+      // B. Das ausgeschnittene Stück speichern
       const finalSelCanvas = document.createElement('canvas');
       finalSelCanvas.width = bounds.w;
       finalSelCanvas.height = bounds.h;
@@ -292,7 +305,7 @@ module.exports = `
       selectionImg = finalSelCanvas;
       selectionState = { x: bounds.x, y: bounds.y, w: bounds.w, h: bounds.h };
 
-      // Cut out from original
+      // C. Loch in den Original-Canvas schneiden
       globalCtx.save();
       globalCtx.beginPath();
       globalCtx.moveTo(lassoPath[0].x, lassoPath[0].y);
@@ -303,15 +316,18 @@ module.exports = `
       globalCtx.fill();
       globalCtx.restore();
 
-      // Neuer Snapshot MIT LOCH, aber OHNE LINIEN
+      // D. NEUEN Snapshot machen -> Das ist der Hintergrund MIT Loch, aber OHNE Linien
       canvasSnapshot = globalCtx.getImageData(0, 0, globalCanvas.width, globalCanvas.height);
 
+      // E. Jetzt rendern wir das Overlay (Linien + Box) wieder drüber
       renderLassoOverlay();
   };
 
   const renderLassoOverlay = () => {
+      // Immer erst den sauberen Hintergrund (ggf. mit Loch) malen
       if (canvasSnapshot) globalCtx.putImageData(canvasSnapshot, 0, 0);
 
+      // Dann die schwebende Auswahl
       if (selectionImg && selectionState) {
           globalCtx.drawImage(selectionImg, selectionState.x, selectionState.y);
           
@@ -323,6 +339,7 @@ module.exports = `
           globalCtx.restore();
       }
 
+      // Oder die Linie während der Selektion
       if (isLassoSelecting && lassoPath.length > 0) {
           globalCtx.save();
           globalCtx.beginPath();
@@ -429,17 +446,20 @@ module.exports = `
 
       // === LASSO START ===
       if (currentTool === 'lasso') {
+          // Fall A: Klick in bestehende Auswahl -> Drag
           if (selectionState && isPointInRect(p, selectionState)) {
               isLassoDragging = true;
               dragOffset = { x: p.x - selectionState.x, y: p.y - selectionState.y };
               activePointerId = e.pointerId;
               return;
           }
+          // Fall B: Klick außerhalb -> Commit & Neustart
           if (selectionState) {
               commitSelection();
           }
           isLassoSelecting = true;
           lassoPath = [p];
+          // Snapshot vom IST-Zustand (ohne Linien, da Auswahl gerade committed wurde oder neu startet)
           canvasSnapshot = globalCtx.getImageData(0, 0, globalCanvas.width, globalCanvas.height);
           activePointerId = e.pointerId;
           return;

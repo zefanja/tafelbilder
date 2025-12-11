@@ -38,15 +38,15 @@ Benenne den **Stellenwert** der rot markierten Ziffer (z, h, t oder E).
 Zeigt mir eure Whiteboards!
 </div>
 
-* a) $12,\color{red}4\color{black}5 \rightarrow$ ++**Zehntel (z)**++
+* a) $12,\color{red}4\color{black}5 \rightarrow$ ++Zehntel (z)++
 
 <br>
 
-* b) $0,1\color{red}7\color{black}9 \rightarrow$ ++**Hundertstel (h)**++
+* b) $0,1\color{red}7\color{black}9 \rightarrow$ ++Hundertstel (h)++
 
 <br>
 
-* c) $\color{red}3\color{black},81 \rightarrow$ ++**Einer (E)**++
+* c) $\color{red}3\color{black},81 \rightarrow$ ++Einer (E)++
 
 ---
 
@@ -62,8 +62,8 @@ Wir schauen uns immer den **rechten Nachbarn** (die Prüfziffer) an.
 
 | Prüfziffer | Aktion | Was passiert? |
 | :---: | :--- | :--- |
-| **0, 1, 2, 3, 4** | **ABrunden** | Die Stelle **bleibt**. |
-| **5, 6, 7, 8, 9** | **AUFrunden** | Die Stelle wird **+1**. |
+| 0, 1, 2, 3, 4 | **AB**runden | Die Stelle **bleibt**. |
+| 5, 6, 7, 8, 9 | **AUF**runden | Die Stelle wird **+1**. |
 
 ---
 
