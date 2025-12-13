@@ -155,7 +155,7 @@ Es ist das **Symmetriezentrum** (meistens $Z$).
 
 <div class="callout info">
 
-# Ich mache es vor (I Do)
+# Ich mache es vor 
 Einen Punkt spiegeln
 </div>
 
@@ -163,7 +163,7 @@ Einen Punkt spiegeln
 
 <div class="callout success">
 
-# Auf euren Whiteboards (We Do)
+# Auf euren Whiteboards 
 Spiegele den Punkt!
 </div>
 
@@ -196,7 +196,7 @@ Zeigt mir eure Whiteboards!
 
 <div class="callout info">
 
-# Ich mache es vor (I Do)
+# Ich mache es vor 
 Eine Figur spiegeln
 </div>
 
