@@ -21,7 +21,7 @@ Löse die Aufgaben still für dich.
 <div class="multicolumn">
 <div>
 
-a) Berechne schriftlich: $145 + 36$
+a) Berechne schriftlich: $1145 + 236$
 
 <br>
 
@@ -50,7 +50,7 @@ d) Schreibe $\frac{7}{100}$ als Kommazahl.
 Vergleiche und korrigiere.
 </div>
 
-* a) $145 + 36 =$ ++**$181$**++
+* a) $1145 + 236 =$ ++**$1381$**++
 * b) $12,4\underline{5} \rightarrow$ ++**Hundertstel (h)**++
 * c) $3,72 \approx$ ++**$3,7$** (abrunden)++
 * d) $\frac{7}{100} =$ ++**$0,07$**++
