@@ -34,7 +34,7 @@ c) Runde $3,72$ auf **Zehntel**.
 
 <br>
 
-d) Schreibe $\frac{7}{10}$ als Kommazahl.
+d) Schreibe $\frac{7}{100}$ als Kommazahl.
 
 </div>
 
@@ -53,7 +53,7 @@ Vergleiche und korrigiere.
 * a) $145 + 36 =$ ++**$181$**++
 * b) $12,4\underline{5} \rightarrow$ ++**Hundertstel (h)**++
 * c) $3,72 \approx$ ++**$3,7$** (abrunden)++
-* d) $\frac{7}{10} =$ ++**$0,7$**++
+* d) $\frac{7}{100} =$ ++**$0,07$**++
 
 ---
 
