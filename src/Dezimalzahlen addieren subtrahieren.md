@@ -154,7 +154,7 @@ Das Auffüllen
 <br>
 
 * Beispiel:
-* $3,5$ und $3,42 \rightarrow$ Wir machen aus $3,5$ ein **$3,50$**.
+* $3,5$ und $3,42 \rightarrow$ ++Wir machen aus $3,5$ ein **$3,50$**++.
 
 
 ---
@@ -311,7 +311,7 @@ Denke an die **Null**!
 
 * b) $15,4 - 3,12$
 
-* c) $9 - 0,4$  *(Achtung: Wo ist das Komma bei der 9?)*
+* c) $9 - 0,4$ 
 
 <span data-timer="04:00"></span>
 
@@ -385,7 +385,40 @@ Was denkst du?
 
 </div>
 
-![h:700](assets/image-23.png)
+![h:700 center](assets/image-24.png)
+
+---
+
+<div class="callout success">
+
+# Verständnisfrage
+Was denkst du?
+
+</div>
+
+![h:700 center](assets/image-25.png)
+
+---
+
+<div class="callout success">
+
+# Verständnisfrage
+Was denkst du?
+
+</div>
+
+![h:200 center](assets/image-26.png)
+
+---
+
+<div class="callout success">
+
+# Verständnisfrage
+Was denkst du?
+
+</div>
+
+![h:200](assets/image-27.png)
 
 ---
 
