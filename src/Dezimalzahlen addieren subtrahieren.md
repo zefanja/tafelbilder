@@ -50,10 +50,10 @@ d) Schreibe $\frac{7}{10}$ als Kommazahl.
 Vergleiche und korrigiere.
 </div>
 
-a) $145 + 36 =$ ++**$181$**++
-b) $12,4\underline{5} \rightarrow$ ++**Hundertstel (h)**++
-c) $3,72 \approx$ ++**$3,7$** (abrunden)++
-d) $\frac{7}{10} =$ ++**$0,7$**++
+* a) $145 + 36 =$ ++**$181$**++
+* b) $12,4\underline{5} \rightarrow$ ++**Hundertstel (h)**++
+* c) $3,72 \approx$ ++**$3,7$** (abrunden)++
+* d) $\frac{7}{10} =$ ++**$0,7$**++
 
 ---
 
@@ -273,8 +273,8 @@ $$\begin{array}{r}
 
 <div class="callout success">
 
-# Übungsphase (Whiteboard)
-Stellengerecht untereinander schreiben
+# Auf euren Whiteboards!
+Stellengerecht untereinander schreiben & rechnen!
 </div>
 
 Denke an die **Null**!
