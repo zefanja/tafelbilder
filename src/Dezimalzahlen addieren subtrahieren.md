@@ -111,6 +111,32 @@ Komma unter Komma!
 
 <br>
 
+<div class="multicolumn">
+<div>
+
+**A)**
+
+$$\begin{array}{r}
+\phantom{+}12,5\\
++\phantom{1}3,48\\
+\hline
+\end{array}$$
+
+</div>
+<div>
+
+**B)**
+
+$$\begin{array}{r}
+\phantom{+}12,50\\
++\phantom{1}3,48\\
+\hline
+\end{array}$$
+
+</div>
+
+</div>
+
 * **A** ist falsch, weil die Kommas nicht übereinander stehen.
 * **B ist richtig**, weil das **Komma genau unter dem Komma** steht.
 
