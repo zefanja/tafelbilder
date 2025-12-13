@@ -418,7 +418,7 @@ Was denkst du?
 
 </div>
 
-![h:200](assets/image-27.png)
+![h:200 center](assets/image-27.png)
 
 ---
 
