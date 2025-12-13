@@ -9,7 +9,7 @@ theme: gropius
 paginate: false
 transition: fade 0.2s
 subject: Mathe
-area: Brüche&Dezimalzahlen
+area: Brüche & Dezimalzahlen
 
 ---
 
