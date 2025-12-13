@@ -91,9 +91,11 @@ $$\begin{array}{r}
 
 </div>
 
- Entscheide dich und lege dann deinen Kopf auf *einen* Arm! Der andere Arm kommt hinter deinen Kopf.
+<br>
 
-![h:300 center](assets/image-22.png)
+*Entscheide dich und lege dann deinen Kopf auf *einen* Arm! Der andere Arm kommt hinter deinen Kopf.*
+
+![h:250 center](assets/image-22.png)
 
 <span data-timer="00:15"></span>
 
