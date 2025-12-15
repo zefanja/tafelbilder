@@ -1,0 +1,14 @@
+{
+    "slidev.force-enabled": true,
+    "slidev.include": [
+        "**/slides.md",
+        "src/Brüche vergleichen.md",
+        "src/Einführung Prozentschreibweise.md",
+        "src/Dezimalzahlen einführen.md",
+        "src/Dezimalzahlen runden.md",
+        "src/Achsensymmetrie und Geradenspiegelung.md",
+        "src/Punktspiegelung.md",
+        "src/Dezimalzahlen vergleichen.md",
+        "src/Dezimalzahlen addieren subtrahieren.md"
+    ]
+}
