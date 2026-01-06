@@ -62,7 +62,7 @@ Entscheidung: Punktsymmetrisch? (Ja / Nein)
 ![h:300](assets/image-17.png)
 
 * d) Ein Kreis
-* ![h:300](assets/image-16.png)
+![h:300](assets/image-16.png)
 
 </div>
 
@@ -100,7 +100,7 @@ Zeigt mir eure Whiteboards!
 <br>
 
 * d) Kreis $\rightarrow$ ++**Ja**++
-* ![h:300](assets/image-16.png)
+![h:300](assets/image-16.png)
 
 </div>
 
@@ -121,16 +121,16 @@ Entscheidung: Punktsymmetrisch? (Ja / Nein)
 
 <div>
 
-* a) ++Ja++
-* b) ++Nein++
-* c) ++Nein++
+* a) Ja
+* b) Nein
+* c) Nein
 
 </div>
 
 <div>
 
-* d) ++Ja++
-* e) ++Nein++
+* d) Ja
+* e) Nein
 
 </div>
 
@@ -150,6 +150,20 @@ Es ist das **Symmetriezentrum** (meistens $Z$).
 <br>
 
 ![h:600 center](assets/image-15.png)
+
+---
+
+<div class="callout warning">
+
+# Zusammenfassung
+Schreibe in deinen Hefter!
+
+</div>
+
+**Merke:**
+Eine Figur ist **punktsymmetrisch**, wenn sie durch eine halbe Drehung auf sich selbst abgebildet wird. Der Drehpunkt heißt **Symmetriezentrum** ($Z$).
+
+![h:500 center](assets/image-21.png)
 
 ---
 
@@ -208,19 +222,7 @@ Ich spiegele das Dreieck $ABC$ am Symmetriezentrum $Z$.
 ![h:600 center](assets/image-19.png)
 
 
----
 
-<div class="callout warning">
-
-# Zusammenfassung
-Schreibe in deinen Hefter!
-
-</div>
-
-**Merke:**
-Eine Figur ist **punktsymmetrisch**, wenn sie durch eine halbe Drehung auf sich selbst abgebildet wird. Der Drehpunkt heißt **Symmetriezentrum** ($Z$).
-
-![h:500 center](assets/image-21.png)
 
 ---
 
