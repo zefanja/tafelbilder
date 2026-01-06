@@ -19,11 +19,6 @@
       "./themes/newton.css",
       "./themes/socrates.css",
       "./themes/sparta.css"
-    ],
-    "slidev.force-enabled": true,
-    "slidev.include": [
-      "**/slides.md",
-      "src/Achsensymmetrie und Geradenspiegelung.md"
     ]
   }
 }

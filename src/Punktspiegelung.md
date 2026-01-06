@@ -137,6 +137,7 @@ Entscheidung: Punktsymmetrisch? (Ja / Nein)
 </div>
 
 ---
+
 <div class="callout info">
 
 # Fachbegriff
