@@ -181,7 +181,7 @@ Einen Punkt spiegeln
 Spiegele den Punkt!
 </div>
 
-Markiere einen Punkt $A$ und ein Symmetriezentrum $Z$ (ca. 5 cm Abstand).
+Markiere einen Punkt $A$ und ein Spiegelpunkt $Z$ (ca. 5 cm Abstand).
 
 <br>
 
@@ -214,7 +214,7 @@ Zeigt mir eure Whiteboards!
 Eine Figur spiegeln
 </div>
 
-Ich spiegele das Dreieck $ABC$ am Symmetriezentrum $Z$.
+Ich spiegele das Dreieck $ABC$ am Punkt $Z$.
 
 * Ich spiegele **jeden Eckpunkt einzeln** ($A \to A'$, $B \to B'$, $C \to C'$).
 * Am Ende verbinde ich $A'$, $B'$ und $C'$.
