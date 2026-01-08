@@ -172,7 +172,7 @@ Wenn der Nenner 100 ist, wird der **Zähler** zur Prozentzahl.
 
 * $\frac{29}{100} =$ ++$29\%$++
 
-* $\frac{5}{100} =$ ++$5\%$ *(Nicht 50%!)*++
+* $\frac{5}{100} =$ ++$5\%$ *(Nicht $50\%$ !)*++
 
 ---
 
@@ -335,11 +335,11 @@ Auf eurem Whiteboard
 
 **Wandle um: Dezimalzahl $\rightarrow$ Bruch $\rightarrow$ Prozent**
 
-1. $0,15$
-2. $0,03$
-3. $0,99$
-4. $0,50$
-5. $1,25$
+* a) $0,15$
+* b) $0,03$
+* c) $0,99$
+* d) $0,50$
+* e) $1,25$
 
 <span data-timer="3:00"></span>
 
@@ -351,18 +351,18 @@ Auf eurem Whiteboard
 Vergleiche mit deinem Partner
 </div>
 
-1. $0,15 = \frac{15}{100} = 15\%$
-2. $0,03 = \frac{3}{100} = 3\%$
-3. $0,99 = \frac{99}{100} = 99\%$
-4. $0,50 = \frac{50}{100} = 50\%$
-5. $1,25 = \frac{125}{100} = 125\%$
+* a) $0,15 = \frac{15}{100} = 15\%$
+* b) $0,03 = \frac{3}{100} = 3\%$
+* c) $0,99 = \frac{99}{100} = 99\%$
+* d) $0,50 = \frac{50}{100} = 50\%$
+* e) $1,25 = \frac{125}{100} = 125\%$
 
 ---
 
 <div class="callout success">
 
-  # Übungsphase
-  In euren Heftern!
+# Übungsphase
+In euren Heftern!
 </div>
 
 **Buch S. 101 Nr. 1; 2**
@@ -375,11 +375,18 @@ Vergleiche mit deinem Partner
 
 ---
 
+<div class="callout info">
+
+# Bruch nicht $\frac{a}{100}$?
+Ich mache es vor (Stifte weglegen!)
+</div>
+
+---
+
 <div class="callout success">
 
-# Übungsphase
+# Stolperstelle
 👥 Mit eurem Partner!
-
 </div>
 
 * ## **Buch S. 103 Nr. 11**
@@ -388,8 +395,8 @@ Vergleiche mit deinem Partner
 
 <div class="callout success">
 
-  # Übungsphase 2
-  In euren Heftern!
+# Übungsphase 2
+In euren Heftern!
 </div>
 
 **Buch S. 103 Nr. 9, 12**

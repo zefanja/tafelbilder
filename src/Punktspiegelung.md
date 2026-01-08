@@ -161,6 +161,8 @@ Schreibe in deinen Hefter!
 
 </div>
 
+## Punktsymmetrie
+
 **Merke:**
 Eine Figur ist **punktsymmetrisch**, wenn sie durch eine halbe Drehung auf sich selbst abgebildet wird. Der Drehpunkt heißt **Symmetriezentrum** ($Z$).
 
@@ -188,9 +190,9 @@ Markiere einen Punkt $A$ und ein Spiegelpunkt $Z$ (ca. 5 cm Abstand).
 
 **Spiegele $A$ an $Z$!**
 
-1. Linie durch $Z$ ziehen.
-2. Abstand messen und übertragen.
-3. Punkt $A'$ nennen.
+❶ Linie durch $Z$ ziehen.
+❷ Abstand messen und übertragen.
+❸ Punkt $A'$ nennen.
 
 <span data-timer="2:00"></span>
 
