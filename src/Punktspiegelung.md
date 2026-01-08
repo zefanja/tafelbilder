@@ -180,7 +180,7 @@ Einen Punkt spiegeln
 
 <div class="callout success">
 
-# Auf euren Whiteboards 
+# Auf euren Whiteboards
 Spiegele den Punkt!
 </div>
 
@@ -224,9 +224,6 @@ Ich spiegele das Dreieck $ABC$ am Punkt $Z$.
 
 ![h:600 center](assets/image-19.png)
 
-
-
-
 ---
 
 <div class="callout success">
@@ -235,6 +232,40 @@ Ich spiegele das Dreieck $ABC$ am Punkt $Z$.
 📘 In euren Heftern!
 </div>
 
-* ## Buch S. 157 Nr. 4; 5; 7
+* ## Buch S. 157 Nr. 4; 5; 7 (jeweils 2 Aufgaben)
 
 <span data-timer="20:00"></span>
+
+---
+
+<div class="callout success">
+
+# Mit eurem Partner
+👥 Prüft die Figuren!
+</div>
+
+Welche Figur ist nur achsensymmetrisch, nur punktsymmetrisch oder beides?
+
+![h:320 center](assets/image-33.png)
+
+---
+
+<div class="callout info">
+
+# Frage
+Wie wird die Figur punktsymmetrisch?
+</div>
+
+![h:800 center](assets/image-34.png)
+
+---
+
+<div class="callout success">
+
+# Übungsphase 2
+📘 In euren Heftern!
+</div>
+
+* ## Buch S. 158 Nr. 13 (und 14)
+
+<span data-timer="08:00"></span>
