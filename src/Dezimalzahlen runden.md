@@ -73,7 +73,7 @@ Wir schauen uns immer den **rechten Nachbarn** (die Prüfziffer) an.
 Entscheidung treffen
 </div>
 
-Schreibe nur: **AB** (bleibt) oder **AUF** (+1).
+Rufe **AB** (bleibt) oder **AUF** (+1).
 
 <br>
 
