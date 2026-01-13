@@ -266,6 +266,7 @@ Wie wird die Figur punktsymmetrisch?
 📘 In euren Heftern!
 </div>
 
-* ## Buch S. 158 Nr. 13 (und 14)
+* ## Buch S. 158 Nr. 13 und 15
+* ## Zusatz Nr. 14
 
-<span data-timer="08:00"></span>
+<span data-timer="15:00"></span>
