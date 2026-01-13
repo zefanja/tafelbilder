@@ -129,3 +129,34 @@ Eine Drehspiegelung durchführen
 * ## Buch S. 160 Nr. 3; 4
 
 <span data-timer="20:00"></span>
+
+---
+
+<div class="callout info">
+
+# Frage
+</div>
+
+
+![h:600 center](assets/image-35.png)
+
+---
+
+<div class="callout info">
+
+# Frage
+</div>
+
+![h:600 center](assets/image-36.png)
+
+---
+
+<div class="callout info">
+
+# Frage
+Stimmt das?
+</div>
+
+Sandra ist der Meinung, dass man eine Punktspiegelung durch zwei Geradenspiegelungen ersetzen kann. Hat sie recht? Begründe!
+
+* ![h:900 center](assets/image-38.png)
